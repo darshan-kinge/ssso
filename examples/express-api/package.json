@@ -1,0 +1,9 @@
+{
+  "name": "oneauth-express-example",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@oneauth/node": "file:../../packages/node",
+    "express": "^4.21.2"
+  }
+}

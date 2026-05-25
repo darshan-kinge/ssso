@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+
+    env:
+      MONGODB_URI: mongodb://127.0.0.1:27017/oneauth_ci
+      JWT_SECRET: ci-jwt-secret-minimum-32-characters-long
+      REFRESH_PEPPER: ci-refresh-pepper-minimum-32-chars
+      REQUIRE_PKCE_FOR_PUBLIC_CLIENTS: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run test:unit
+
+      - run: npm run test
+
+      - run: npm run build

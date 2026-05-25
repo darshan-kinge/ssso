@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>OneAuth Test Client</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 640px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        background: #0a0a0b;
+        color: #fafafa;
+      }
+      input,
+      button {
+        width: 100%;
+        padding: 0.5rem;
+        margin: 0.25rem 0 0.75rem;
+        box-sizing: border-box;
+      }
+      pre {
+        background: #18181b;
+        padding: 1rem;
+        overflow: auto;
+        font-size: 12px;
+      }
+      a {
+        color: #3b82f6;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>OneAuth test client</h1>
+    <p>Run this file on port <strong>3001</strong> (redirect must match your app registration).</p>
+
+    <label>Auth URL</label>
+    <input id="authUrl" value="http://localhost:3000" />
+
+    <label>Client ID</label>
+    <input id="clientId" placeholder="oa_..." />
+
+    <label>Client secret (server-side only — for demo token exchange)</label>
+    <input id="clientSecret" type="password" />
+
+    <label>Redirect URI</label>
+    <input id="redirectUri" value="http://localhost:3001/callback.html" />
+
+    <button id="loginBtn">Sign in with OneAuth</button>
+
+    <h2>Result</h2>
+    <pre id="out">Waiting…</pre>
+
+    <script>
+      const out = document.getElementById("out");
+      const params = new URLSearchParams(location.search);
+
+      function log(obj) {
+        out.textContent = JSON.stringify(obj, null, 2);
+      }
+
+      if (params.has("code")) {
+        log({ step: "callback", code: params.get("code"), state: params.get("state") });
+        exchangeCode(params.get("code"));
+      } else {
+        log({ step: "ready", hint: "Click Sign in" });
+      }
+
+      document.getElementById("loginBtn").onclick = () => {
+        const authUrl = document.getElementById("authUrl").value.replace(/\/$/, "");
+        const clientId = document.getElementById("clientId").value;
+        const redirectUri = document.getElementById("redirectUri").value;
+        const state = crypto.randomUUID();
+
+        sessionStorage.setItem("oneauth_state", state);
+        sessionStorage.setItem("oneauth_redirect", redirectUri);
+
+        const q = new URLSearchParams({
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          response_type: "code",
+          state,
+        });
+
+        location.href = `${authUrl}/authorize?${q}`;
+      };
+
+      async function exchangeCode(code) {
+        const authUrl = document.getElementById("authUrl").value.replace(/\/$/, "");
+        const clientId = document.getElementById("clientId").value;
+        const clientSecret = document.getElementById("clientSecret").value;
+        const redirectUri =
+          sessionStorage.getItem("oneauth_redirect") ||
+          document.getElementById("redirectUri").value;
+        const state = params.get("state");
+        const expected = sessionStorage.getItem("oneauth_state");
+
+        if (state !== expected) {
+          log({ error: "state mismatch — possible CSRF" });
+          return;
+        }
+
+        const res = await fetch(`${authUrl}/api/oauth/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            grant_type: "authorization_code",
+            code,
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+          }),
+        });
+
+        const data = await res.json();
+        log({ status: res.status, data });
+      }
+    </script>
+  </body>
+</html>
