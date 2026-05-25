@@ -19,6 +19,7 @@ export default function CoreDemoPage() {
         clientId: env.clientId,
         redirectUri: env.redirectUri,
         storageKey: "oneauth_demo_core_token",
+        usePkce: true,
       }),
     [env.authUrl, env.clientId, env.redirectUri]
   );
@@ -31,7 +32,14 @@ export default function CoreDemoPage() {
     setCoreToken(client.getToken());
     const u = client.getUser();
     setCoreUser(u ? JSON.stringify(u, null, 2) : "null");
-    setAuthorizeUrl(client.buildAuthorizeUrl("demo-state"));
+
+    let cancelled = false;
+    void client.buildAuthorizeUrl("demo-state").then((url) => {
+      if (!cancelled) setAuthorizeUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [client, ctxToken]);
 
   return (
@@ -82,7 +90,9 @@ export default function CoreDemoPage() {
         </div>
 
         <div>
-          <p className="text-xs text-[var(--muted)]">buildAuthorizeUrl()</p>
+          <p className="text-xs text-[var(--muted)]">
+            buildAuthorizeUrl() (async, includes PKCE when enabled)
+          </p>
           <p className="mt-1 break-all font-mono text-xs">
             {authorizeUrl || "(client only)"}
           </p>
