@@ -3,5 +3,5 @@ export declare function generateCodeVerifier(): string;
 export declare function codeChallengeS256(verifier: string): Promise<string>;
 export declare function storeCodeVerifier(verifier: string, key?: string): void;
 export declare function takeCodeVerifier(key?: string): string | null;
-export declare const PKCE_VERIFIER_KEY = "oneauth_code_verifier";
+export declare const PKCE_VERIFIER_KEY = "ssso_code_verifier";
 //# sourceMappingURL=pkce.d.ts.map

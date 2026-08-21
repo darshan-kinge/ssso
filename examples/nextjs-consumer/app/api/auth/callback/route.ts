@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 /**
  * Template: copy into your Next.js consumer app.
- * Exchanges OAuth code using ONEAUTH_CLIENT_SECRET (server-only).
+ * Exchanges OAuth code using SSSO_CLIENT_SECRET (server-only).
  */
 export async function POST(request: Request) {
   const { code, redirect_uri } = await request.json();
@@ -15,8 +15,8 @@ export async function POST(request: Request) {
   }
 
   const authUrl = process.env.NEXT_PUBLIC_AUTH_URL?.replace(/\/$/, "");
-  const clientId = process.env.NEXT_PUBLIC_ONEAUTH_CLIENT_ID;
-  const clientSecret = process.env.ONEAUTH_CLIENT_SECRET;
+  const clientId = process.env.NEXT_PUBLIC_SSSO_CLIENT_ID;
+  const clientSecret = process.env.SSSO_CLIENT_SECRET;
 
   if (!authUrl || !clientId || !clientSecret) {
     return NextResponse.json({ error: "Misconfigured" }, { status: 503 });

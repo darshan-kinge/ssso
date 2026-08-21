@@ -2,6 +2,11 @@ import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 
 const appSchema = new Schema(
   {
+    workspaceId: {
+      type: Schema.Types.ObjectId,
+      ref: "Workspace",
+      index: true,
+    },
     ownerId: {
       type: Schema.Types.ObjectId,
       ref: "User",

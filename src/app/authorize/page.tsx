@@ -11,8 +11,16 @@ import {
 import { buildAuthorizeQuery } from "@/lib/oauth/params";
 import { validateOAuthClient } from "@/lib/oauth/apps";
 import { assertAuthorizePkceForApp } from "@/lib/oauth/pkce-policy";
-import { getUserFromRefreshCookie } from "@/lib/oauth/session-user";
+import { getOAuthSubjectFromRefreshCookie } from "@/lib/oauth/subject";
+import { getResolvedTenantWorkspace } from "@/lib/workspace/request-context";
+import { findWorkspaceById } from "@/lib/workspace/service";
+import {
+  isMultiTenantEnabled,
+  tenantAuthUrl,
+} from "@/lib/config/deployment";
+import { findAppByClientId } from "@/lib/oauth/apps";
 import { AuthorizePanel } from "@/components/oauth/AuthorizePanel";
+import { resolveThemeSettings } from "@/lib/workspace/theme-resolver";
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -29,9 +37,14 @@ function toSearchParams(
 }
 
 export default async function AuthorizePage({ searchParams }: PageProps) {
-  const { app: brand } = getPublicConfig();
+  const { app: brand, urls } = getPublicConfig();
   const raw = await searchParams;
   const query = toSearchParams(raw);
+
+  if (!query.has("client_id") && !query.has("redirect_uri")) {
+    redirect(urls.platformBase);
+  }
+
 
   if (!isDbConfigured()) {
     return (
@@ -68,13 +81,46 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
     return <ErrorShell title="Invalid request" message={code} />;
   }
 
+  if (isMultiTenantEnabled()) {
+    const { isTenantRequest } = await import("@/lib/workspace/tenant-host-server");
+    const onPlatform = !(await isTenantRequest());
+
+    if (onPlatform) {
+      const app = await findAppByClientId(oauthParams.client_id);
+      if (app?.workspaceId) {
+        const ws = await findWorkspaceById(app.workspaceId.toString());
+        if (ws) {
+          redirect(
+            `${tenantAuthUrl(ws.slug)}/authorize?${buildAuthorizeQuery(oauthParams)}`
+          );
+        }
+      }
+    }
+  }
+
+  const tenantWorkspace = isMultiTenantEnabled()
+    ? await getResolvedTenantWorkspace()
+    : null;
+  const expectedWorkspaceId =
+    tenantWorkspace?._id.toString() ??
+    undefined;
+
   let app;
+  let workspaceName: string | undefined;
+  let workspaceSettings: { logoUrl?: string | null; primaryColor?: string | null; } | null | undefined = null;
   try {
     app = await validateOAuthClient(
       oauthParams.client_id,
-      oauthParams.redirect_uri
+      oauthParams.redirect_uri,
+      expectedWorkspaceId
     );
     assertAuthorizePkceForApp(app, oauthParams);
+
+    if (app.workspaceId) {
+      const ws = await findWorkspaceById(app.workspaceId.toString());
+      workspaceName = ws?.name;
+      workspaceSettings = ws?.settings;
+    }
   } catch (err) {
     const message = isAuthError(err)
       ? err.message
@@ -84,30 +130,37 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
     return <ErrorShell title="Application error" message={message} />;
   }
 
-  const user = await getUserFromRefreshCookie();
-  if (user) {
-    const redirectUrl = await completeAuthorization(user, oauthParams);
+  const subject = await getOAuthSubjectFromRefreshCookie(expectedWorkspaceId);
+  if (subject) {
+    const redirectUrl = await completeAuthorization(subject, oauthParams);
     redirect(redirectUrl);
   }
 
+  const theme = resolveThemeSettings(workspaceSettings);
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
-      <p className="mb-6 text-sm text-[var(--muted)]">{brand.name}</p>
-      <AuthorizePanel
-        brandName={brand.name}
-        appName={app.name}
-        params={oauthParams}
-      />
-      <p className="mt-6 text-center text-xs text-[var(--muted)]">
-        Request: <code className="rounded bg-[var(--card)] px-1">/authorize?{buildAuthorizeQuery(oauthParams)}</code>
-      </p>
-      <Link
-        href="/"
-        className="mt-6 text-center text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
-      >
-        ← Home
-      </Link>
-    </main>
+    <div 
+      className={`flex min-h-screen flex-col items-center justify-center p-6 ${theme.themeClass}`}
+      style={theme.outerStyle}
+    >
+      <main className={theme.cardClass}>
+        <AuthorizePanel
+          brandName={brand.name}
+          workspaceName={workspaceName}
+          workspaceSettings={workspaceSettings}
+          appName={app.name}
+          params={oauthParams}
+        />
+        <div className="mt-6 text-center">
+          <Link
+            href="/"
+            className="text-xs font-bold text-[var(--foreground)] underline hover:text-[var(--accent)] transition"
+          >
+            ← Home
+          </Link>
+        </div>
+      </main>
+    </div>
   );
 }
 
@@ -119,12 +172,21 @@ function ErrorShell({
   message: string;
 }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
-      <h1 className="text-xl font-semibold text-red-400">{title}</h1>
-      <p className="mt-2 text-sm text-[var(--muted)]">{message}</p>
-      <Link href="/" className="mt-8 text-sm text-[var(--accent)] hover:underline">
-        ← Home
-      </Link>
-    </main>
+    <div className="flex min-h-screen flex-col items-center justify-center p-6">
+      <main className="w-full max-w-md rounded-none border-4 border-[var(--border)] bg-[var(--card)] p-8 shadow-[10px_10px_0px_0px_var(--border)] rotate-1">
+        <h1 className="text-2xl font-black uppercase tracking-tight text-red-500">{title}</h1>
+        <p className="mt-4 text-xs font-bold text-[var(--foreground)]/80 leading-relaxed bg-red-500/10 border-2 border-[var(--border)] p-3 shadow-[3px_3px_0px_0px_var(--border)]">
+          {message}
+        </p>
+        <div className="mt-6 text-center">
+          <Link
+            href="/"
+            className="text-xs font-bold text-[var(--foreground)] underline hover:text-[var(--accent)] transition"
+          >
+            ← Home
+          </Link>
+        </div>
+      </main>
+    </div>
   );
 }

@@ -6,6 +6,8 @@ import { authFetch } from "@/lib/auth/api-client";
 interface AuditEvent {
   id: string;
   action: string;
+  plane?: string;
+  workspaceId?: string | null;
   success: boolean;
   ip: string;
   createdAt?: string;
@@ -31,39 +33,47 @@ export function AuditPanel() {
   }, [load]);
 
   if (loading) {
-    return <p className="text-sm text-[var(--muted)]">Loading activity…</p>;
+    return <p className="text-sm font-medium text-slate-400 animate-pulse">Loading activity…</p>;
   }
 
   if (events.length === 0) {
     return (
-      <p className="text-sm text-[var(--muted)]">
+      <p className="text-xs font-semibold text-slate-400">
         No security events recorded yet.
       </p>
     );
   }
 
   return (
-    <ul className="max-h-64 space-y-2 overflow-y-auto">
+    <ul className="max-h-[300px] space-y-3 overflow-y-auto pr-2">
       {events.map((e) => (
         <li
           key={e.id}
-          className="flex items-start justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs"
+          className="flex items-start justify-between gap-4 border-b border-slate-100 pb-3 last:border-0 last:pb-0 text-xs"
         >
           <div>
-            <p className="font-mono text-[var(--foreground)]">{e.action}</p>
-            <p className="mt-0.5 text-[var(--muted)]">
+            <p className="font-mono font-semibold text-slate-900">{e.action}</p>
+            <p className="mt-1 text-[10px] text-slate-400 font-medium leading-normal">
               {e.createdAt
                 ? new Date(e.createdAt).toLocaleString()
                 : "—"}{" "}
               · {e.ip}
+              {e.plane && (
+                <>
+                  {" "}
+                  · {e.plane} plane
+                </>
+              )}
             </p>
           </div>
           <span
             className={
-              e.success ? "text-[var(--accent)]" : "text-red-400"
+              e.success 
+                ? "text-[9px] font-semibold tracking-wider uppercase text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full" 
+                : "text-[9px] font-semibold tracking-wider uppercase text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full"
             }
           >
-            {e.success ? "ok" : "fail"}
+            {e.success ? "success" : "failed"}
           </span>
         </li>
       ))}

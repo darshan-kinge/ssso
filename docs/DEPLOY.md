@@ -29,9 +29,14 @@ openssl rand -base64 32   # → REFRESH_PEPPER
 | `JWT_SECRET` | yes | min 32 chars |
 | `REFRESH_PEPPER` | yes | min 32 chars |
 | `NEXT_PUBLIC_AUTH_URL` | yes | `https://your-app.vercel.app` (no trailing slash) |
+| `NEXT_PUBLIC_PLATFORM_URL` | yes (SaaS) | Dashboard origin, e.g. `https://app.ssso.in` |
+| `TENANT_DOMAIN_SUFFIX` | yes (SaaS) | Tenant suffix, e.g. `ssso.in` |
+| `DEPLOYMENT_MODE` | yes (SaaS) | `saas` |
+| `MULTI_TENANT_ENABLED` | yes (SaaS) | `true` |
 | `NEXT_PUBLIC_APP_NAME` | optional | Branding |
 | `RESEND_API_KEY` | optional | Email |
 | `EMAIL_FROM` | optional | With Resend |
+| `REDIS_URL` | recommended | Atomic rate limiting across serverless instances |
 | `REQUIRE_EMAIL_VERIFICATION` | optional | `true` when email is live |
 | `REQUIRE_PKCE_FOR_PUBLIC_CLIENTS` | optional | default `true` |
 
@@ -71,9 +76,9 @@ ONEAUTH_REDIRECT_URI=https://your-consumer.com/api/auth/callback
 
 Exchange the code on your server only. See [examples/demo-app](examples/demo-app/README.md).
 
-## 6. Demo app (optional)
+## 6. Pulse demo app (optional)
 
-Deploy `examples/demo-app` as a **second** Vercel project, or run locally:
+**Pulse** (`examples/demo-app`) is a realistic consumer sample (projects + tasks). Deploy as a **second** Vercel project, or run locally:
 
 ```bash
 # examples/demo-app/.env.local
@@ -96,6 +101,7 @@ MONGODB_URI=mongodb://127.0.0.1:27017/oneauth_test npm test
 ## Checklist
 
 - [ ] `NEXT_PUBLIC_AUTH_URL` matches deployed domain
+- [ ] SaaS platform URL and tenant domain suffix match DNS
 - [ ] Redirect URLs in `/apps` match consumer callbacks exactly
 - [ ] Public consumers use PKCE; secrets only on server
 - [ ] Email configured before enabling `REQUIRE_EMAIL_VERIFICATION`

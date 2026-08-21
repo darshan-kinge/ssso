@@ -1,5 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import type { Types } from "mongoose";
 import { applyTestEnv } from "../helpers/env";
 import {
   connectTestDb,
@@ -9,6 +10,7 @@ import {
 } from "../helpers/db";
 import { User } from "@/lib/models/User";
 import { App } from "@/lib/models/App";
+import { Workspace } from "@/lib/models/Workspace";
 import { hashPassword } from "@/lib/auth/password";
 import { createApp } from "@/lib/oauth/apps";
 import {
@@ -29,6 +31,7 @@ applyTestEnv();
 run("OAuth PKCE integration", () => {
   const redirectUri = "http://localhost:3001/callback";
   let clientId = "";
+  let workspaceId: Types.ObjectId;
 
   before(async () => {
     applyTestEnv(process.env.MONGODB_URI);
@@ -41,9 +44,15 @@ run("OAuth PKCE integration", () => {
       passwordHash,
       isVerified: true,
     });
+    const workspace = await Workspace.create({
+      slug: "pkce-test",
+      name: "PKCE Test",
+    });
+    workspaceId = workspace._id;
 
     const { app } = await createApp(
       user._id.toString(),
+      workspace._id.toString(),
       "PKCE Test App",
       [redirectUri],
       "public"
@@ -62,9 +71,10 @@ run("OAuth PKCE integration", () => {
     const verifier = generateCodeVerifier();
     const challenge = codeChallengeS256(verifier);
     const code = await createAuthorizationCode(
-      user,
+      { kind: "platform", user },
       clientId,
       redirectUri,
+      workspaceId,
       challenge
     );
 
@@ -86,9 +96,10 @@ run("OAuth PKCE integration", () => {
 
     const verifier = generateCodeVerifier();
     const code = await createAuthorizationCode(
-      user,
+      { kind: "platform", user },
       clientId,
       redirectUri,
+      workspaceId,
       codeChallengeS256(verifier)
     );
 
@@ -111,9 +122,10 @@ run("OAuth PKCE integration", () => {
 
     const verifier = generateCodeVerifier();
     const code = await createAuthorizationCode(
-      user,
+      { kind: "platform", user },
       clientId,
       redirectUri,
+      workspaceId,
       codeChallengeS256(verifier)
     );
 
@@ -122,6 +134,27 @@ run("OAuth PKCE integration", () => {
         consumeAuthorizationCode(code, clientId, redirectUri, undefined),
       (err: unknown) => err instanceof AuthError
     );
+  });
+
+  it("allows only one concurrent code redemption", async () => {
+    const user = await User.findOne({ email: "pkce-test@example.com" });
+    assert.ok(user);
+
+    const verifier = generateCodeVerifier();
+    const code = await createAuthorizationCode(
+      { kind: "platform", user },
+      clientId,
+      redirectUri,
+      workspaceId,
+      codeChallengeS256(verifier)
+    );
+    const results = await Promise.allSettled([
+      consumeAuthorizationCode(code, clientId, redirectUri, verifier),
+      consumeAuthorizationCode(code, clientId, redirectUri, verifier),
+    ]);
+
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    assert.equal(results.filter((result) => result.status === "rejected").length, 1);
   });
 
   it("stores public clientType on app", async () => {

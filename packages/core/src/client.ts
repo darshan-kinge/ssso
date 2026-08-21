@@ -2,9 +2,10 @@ import { createStorage } from "./storage.js";
 import { decodeAccessToken, isTokenExpired, userFromClaims } from "./jwt.js";
 import { generateCodeVerifier, codeChallengeS256 } from "./pkce.js";
 import type {
-  OneAuthConfig,
-  OneAuthUser,
+  SssoConfig,
+  SssoUser,
   TokenResponse,
+  WorkspacePublicConfig,
 } from "./types.js";
 
 function normalizeAuthUrl(url: string): string {
@@ -18,12 +19,12 @@ function randomState(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-export class OneAuthClient {
+export class SssoClient {
   private readonly authUrl: string;
   private readonly storage: ReturnType<typeof createStorage>;
   private readonly usePkce: boolean;
 
-  constructor(private readonly config: OneAuthConfig) {
+  constructor(private readonly config: SssoConfig) {
     this.authUrl = normalizeAuthUrl(config.authUrl);
     this.storage = createStorage(config.storageKey, config.stateKey);
     this.usePkce = config.usePkce !== false;
@@ -127,7 +128,7 @@ export class OneAuthClient {
   async handleCallback(
     search: string,
     options?: { clientSecret?: string }
-  ): Promise<{ accessToken: string; user: OneAuthUser }> {
+  ): Promise<{ accessToken: string; user: SssoUser }> {
     const { code } = this.parseCallback(search);
     if (options?.clientSecret) {
       this.config.clientSecret = options.clientSecret;
@@ -156,7 +157,7 @@ export class OneAuthClient {
     this.storage.clearToken();
   }
 
-  getUser(): OneAuthUser | null {
+  getUser(): SssoUser | null {
     const token = this.getToken();
     if (!token) return null;
     const claims = decodeAccessToken(token);
@@ -172,7 +173,7 @@ export class OneAuthClient {
   async handleCallbackViaApi(
     search: string,
     apiUrl: string
-  ): Promise<{ accessToken: string; user: OneAuthUser }> {
+  ): Promise<{ accessToken: string; user: SssoUser }> {
     const { code } = this.parseCallback(search);
     const verifier = this.storage.takeCodeVerifier();
 
@@ -197,12 +198,21 @@ export class OneAuthClient {
     }
 
     this.setToken(accessToken);
-    const user: OneAuthUser = data.user ?? this.getUser() ?? {
+    const user: SssoUser = data.user ?? this.getUser() ?? {
       id: "",
       email: "",
     };
 
     return { accessToken, user };
+  }
+
+  /** Fetch the public configuration for the resolved workspace/tenant */
+  async getWorkspaceConfig(): Promise<WorkspacePublicConfig> {
+    const res = await fetch(`${this.authUrl}/api/workspaces/public`);
+    if (!res.ok) {
+      throw new Error("Failed to fetch workspace public configuration");
+    }
+    return res.json() as Promise<WorkspacePublicConfig>;
   }
 
   logout(): void {

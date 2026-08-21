@@ -64,17 +64,19 @@ export function AuthorizeUrlSample({
   }, [authOrigin, clientId, redirectUri, clientType]);
 
   if (!url) {
-    return <p className="mt-3 text-xs text-[var(--muted)]">Building sample URL…</p>;
+    return <p className="mt-3 text-[10px] text-zinc-500 font-semibold uppercase tracking-wider animate-pulse">Building sample URL…</p>;
   }
 
   return (
-    <div className="mt-3">
-      <p className="text-xs text-[var(--muted)]">
+    <div className="mt-4">
+      <span className="text-[10px] font-bold tracking-wider text-zinc-500 uppercase">
         {clientType === "public"
-          ? "Sample authorize URL (PKCE S256 — use @oneauth/core login() in production):"
-          : "Sample authorize URL (confidential — exchange with client_secret on your server):"}
+          ? "Sample Authorize URL (PKCE S256)"
+          : "Sample Authorize URL (Confidential)"}
+      </span>
+      <p className="mt-1.5 p-2.5 rounded border border-zinc-850 bg-zinc-950/50 break-all font-mono text-[11px] text-zinc-400 select-all leading-normal">
+        {url}
       </p>
-      <p className="mt-1 break-all font-mono text-xs text-[var(--muted)]">{url}</p>
     </div>
   );
 }

@@ -1,21 +1,30 @@
 /**
- * OneAuth — edit this file to customize branding and auth behavior.
+ * SSSO — edit this file to customize branding and auth behavior.
  * Environment variables override these values in production (see .env.example).
  */
-import type { OneAuthConfig } from "./src/lib/config/types";
+import type { SssoConfig } from "./src/lib/config/types";
 
-const config: OneAuthConfig = {
+const config: SssoConfig = {
   app: {
-    name: "OneAuth",
+    name: "SSSO",
     tagline:
-      "Simple developer-friendly authentication for your personal projects.",
-    description: "Personal SSO platform for web, mobile, and internal apps.",
+      "Simple developer-friendly single sign-on for your SaaS applications.",
+    description: "SaaS SSO platform for web, mobile, and internal apps.",
     supportEmail: "support@example.com",
   },
 
   urls: {
     /** Public auth base URL (no trailing slash). Override with NEXT_PUBLIC_AUTH_URL */
     authBase: "http://localhost:3000",
+    /** Dashboard host in SaaS mode. Override with NEXT_PUBLIC_PLATFORM_URL */
+    platformBase: "http://localhost:3000",
+  },
+
+  deployment: {
+    mode: "saas",
+    /** Tenant subdomains: {slug}.localhost:3000 in dev */
+    tenantDomainSuffix: "localhost:3000",
+    reservedSlugs: ["app", "www", "api", "admin", "status", "demo"],
   },
 
   tokens: {
@@ -35,6 +44,7 @@ const config: OneAuthConfig = {
   email: {
     verificationTokenTtlHours: 24,
     passwordResetTokenTtlHours: 1,
+    inviteTokenTtlHours: 72,
   },
 
   security: {
@@ -57,12 +67,13 @@ const config: OneAuthConfig = {
 
   features: {
     /** Require email verification before login (Phase 5) */
-    requireEmailVerification: false,
+    requireEmailVerification: true,
     /** MongoDB-backed rate limits on auth endpoints */
     rateLimitEnabled: true,
     /** Persist security events to audit_logs collection */
     auditLogEnabled: true,
     auditRetentionDays: 90,
+    multiTenant: true,
   },
 };
 

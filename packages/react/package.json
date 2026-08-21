@@ -1,7 +1,7 @@
 {
-  "name": "@oneauth/react",
+  "name": "@ssso/react",
   "version": "0.1.0",
-  "description": "OneAuth React SDK — AuthProvider, useAuth, ProtectedRoute",
+  "description": "SSSO React SDK — AuthProvider, useAuth, ProtectedRoute",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,7 +26,7 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@oneauth/core": "0.1.0"
+    "@ssso/core": "0.1.0"
   },
   "sideEffects": false
 }

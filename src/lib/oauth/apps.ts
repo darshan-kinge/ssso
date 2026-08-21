@@ -28,6 +28,7 @@ export async function findAppByClientId(clientId: string): Promise<AppDocument |
 
 export async function createApp(
   ownerId: string,
+  workspaceId: string,
   name: string,
   redirectUrls: string[],
   clientType: OAuthClientType = "public"
@@ -48,6 +49,7 @@ export async function createApp(
   const clientSecretHash = hashClientSecret(clientSecret);
 
   const app = await App.create({
+    workspaceId,
     ownerId,
     name: name.trim(),
     clientId,
@@ -65,14 +67,20 @@ export async function listAppsForOwner(ownerId: string) {
   return apps.map(toPublicApp);
 }
 
+export async function listAppsForWorkspace(workspaceId: string) {
+  await connectDb();
+  const apps = await App.find({ workspaceId }).sort({ createdAt: -1 });
+  return apps.map(toPublicApp);
+}
+
 export async function updateApp(
-  ownerId: string,
+  workspaceId: string,
   appId: string,
   input: { redirectUrls?: string[]; clientType?: OAuthClientType }
 ): Promise<AppDocument> {
   await connectDb();
 
-  const app = await App.findOne({ _id: appId, ownerId });
+  const app = await App.findOne({ _id: appId, workspaceId });
 
   if (!app) {
     throw new AuthError("Application not found", 404, "not_found");
@@ -99,27 +107,27 @@ export async function updateApp(
 
 /** @deprecated Use updateApp */
 export async function updateAppRedirects(
-  ownerId: string,
+  workspaceId: string,
   appId: string,
   redirectUrls: string[]
 ): Promise<AppDocument> {
-  return updateApp(ownerId, appId, { redirectUrls });
+  return updateApp(workspaceId, appId, { redirectUrls });
 }
 
 export async function findAppForOwner(
-  ownerId: string,
+  workspaceId: string,
   appId: string
 ): Promise<AppDocument | null> {
   await connectDb();
-  return App.findOne({ _id: appId, ownerId });
+  return App.findOne({ _id: appId, workspaceId });
 }
 
 export async function rotateAppSecret(
-  ownerId: string,
+  workspaceId: string,
   appId: string
 ): Promise<{ app: AppDocument; clientSecret: string }> {
   await connectDb();
-  const app = await App.findOne({ _id: appId, ownerId });
+  const app = await App.findOne({ _id: appId, workspaceId });
 
   if (!app) {
     throw new AuthError("Application not found", 404, "not_found");
@@ -133,11 +141,11 @@ export async function rotateAppSecret(
 }
 
 export async function deleteAppForOwner(
-  ownerId: string,
+  workspaceId: string,
   appId: string
 ): Promise<void> {
   await connectDb();
-  const result = await App.deleteOne({ _id: appId, ownerId });
+  const result = await App.deleteOne({ _id: appId, workspaceId });
 
   if (result.deletedCount === 0) {
     throw new AuthError("Application not found", 404, "not_found");
@@ -146,11 +154,34 @@ export async function deleteAppForOwner(
 
 export async function validateOAuthClient(
   clientId: string,
-  redirectUri: string
+  redirectUri: string,
+  expectedWorkspaceId?: string
 ): Promise<AppDocument> {
   const app = await findAppByClientId(clientId);
   if (!app) {
     throw new AuthError("Unknown client_id", 400, "invalid_client");
+  }
+
+  if (!app.workspaceId && app.ownerId) {
+    const { User } = await import("@/lib/models/User");
+    const owner = await User.findById(app.ownerId);
+    if (owner) {
+      const { ensureDefaultWorkspace } = await import("@/lib/workspace/service");
+      const ws = await ensureDefaultWorkspace(
+        owner._id.toString(),
+        owner.email
+      );
+      await App.updateOne({ _id: app._id }, { workspaceId: ws._id });
+      app.workspaceId = ws._id;
+    }
+  }
+
+  if (expectedWorkspaceId && app.workspaceId?.toString() !== expectedWorkspaceId) {
+    throw new AuthError(
+      "Application does not belong to this workspace",
+      400,
+      "invalid_client"
+    );
   }
 
   if (!isRedirectUriAllowed(redirectUri, app.redirectUrls)) {

@@ -1,7 +1,7 @@
 {
-  "name": "@oneauth/core",
+  "name": "@ssso/core",
   "version": "0.1.0",
-  "description": "OneAuth JavaScript SDK — OAuth client helpers",
+  "description": "SSSO JavaScript SDK — OAuth client helpers",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -2,13 +2,17 @@ import { createHash, randomBytes } from "crypto";
 import { getConfig } from "@/lib/config";
 import { connectDb } from "@/lib/db/mongoose";
 import { AuthorizationCode } from "@/lib/models/AuthorizationCode";
+import type { EndUserDocument } from "@/lib/models/EndUser";
 import type { UserDocument } from "@/lib/models/User";
 import { AuthError } from "@/lib/auth/errors";
+import { isMultiTenantEnabled } from "@/lib/config/deployment";
 import {
   assertValidCodeVerifier,
   verifyCodeVerifier,
 } from "./pkce";
 import { normalizeRedirectUri } from "./redirect";
+import type { OAuthSubject } from "./subject";
+import type { Types } from "mongoose";
 
 function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
@@ -20,9 +24,10 @@ function codeExpiresAt(): Date {
 }
 
 export async function createAuthorizationCode(
-  user: UserDocument,
+  subject: OAuthSubject,
   clientId: string,
   redirectUri: string,
+  workspaceId: Types.ObjectId,
   codeChallenge?: string
 ): Promise<string> {
   await connectDb();
@@ -31,14 +36,34 @@ export async function createAuthorizationCode(
   const codeHash = hashCode(code);
   const normalizedRedirect = normalizeRedirectUri(redirectUri);
 
-  await AuthorizationCode.create({
+  const base = {
     codeHash,
-    userId: user._id,
     clientId,
     redirectUri: normalizedRedirect,
     codeChallenge: codeChallenge ?? null,
     expiresAt: codeExpiresAt(),
-  });
+    workspaceId,
+  };
+
+  if (isMultiTenantEnabled() && subject.kind === "end_user") {
+    await AuthorizationCode.create({
+      ...base,
+      endUserId: subject.user._id,
+      userId: null,
+    });
+  } else if (subject.kind === "platform") {
+    await AuthorizationCode.create({
+      ...base,
+      userId: subject.user._id,
+      endUserId: null,
+    });
+  } else {
+    await AuthorizationCode.create({
+      ...base,
+      endUserId: subject.user._id,
+      userId: null,
+    });
+  }
 
   return code;
 }
@@ -48,7 +73,12 @@ export async function consumeAuthorizationCode(
   clientId: string,
   redirectUri: string,
   codeVerifier?: string
-): Promise<{ userId: string }> {
+): Promise<{
+  subjectId: string;
+  email: string;
+  workspaceId: string;
+  isEndUser: boolean;
+}> {
   await connectDb();
 
   const codeHash = hashCode(code);
@@ -83,8 +113,53 @@ export async function consumeAuthorizationCode(
     }
   }
 
-  record.usedAt = new Date();
-  await record.save();
+  const consumed = await AuthorizationCode.findOneAndUpdate(
+    { _id: record._id, usedAt: null },
+    { $set: { usedAt: new Date() } },
+    { new: true }
+  );
+  if (!consumed) {
+    throw new AuthError("Invalid authorization code", 400, "invalid_grant");
+  }
 
-  return { userId: record.userId.toString() };
+  const isEndUser = Boolean(consumed.endUserId);
+  const subjectId = (consumed.endUserId ?? consumed.userId)?.toString();
+  if (!subjectId) {
+    throw new AuthError("Invalid authorization code", 400, "invalid_grant");
+  }
+
+  let workspaceId = consumed.workspaceId?.toString();
+  if (!workspaceId) {
+    const app = await import("@/lib/oauth/apps").then((m) =>
+      m.findAppByClientId(consumed.clientId)
+    );
+    workspaceId = app?.workspaceId?.toString();
+  }
+  if (!workspaceId) {
+    throw new AuthError("Invalid authorization code", 400, "invalid_grant");
+  }
+
+  const { EndUser } = await import("@/lib/models/EndUser");
+  const { User } = await import("@/lib/models/User");
+
+  let email: string;
+  if (isEndUser) {
+    const u = await EndUser.findById(consumed.endUserId);
+    if (!u) throw new AuthError("User not found", 400, "invalid_grant");
+    email = u.email;
+  } else {
+    const u = await User.findById(consumed.userId);
+    if (!u) throw new AuthError("User not found", 400, "invalid_grant");
+    email = u.email;
+  }
+
+  return {
+    subjectId,
+    email,
+    workspaceId,
+    isEndUser,
+  };
 }
+
+/** @deprecated Use OAuthSubject */
+export type LegacyUser = UserDocument | EndUserDocument;

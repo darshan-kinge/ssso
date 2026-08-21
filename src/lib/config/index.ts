@@ -1,5 +1,5 @@
-import baseConfig from "../../../oneauth.config";
-import type { OneAuthConfig, ResolvedOneAuthConfig } from "./types";
+import baseConfig from "../../../ssso.config";
+import type { SssoConfig, ResolvedSssoConfig } from "./types";
 
 function env(key: string): string | undefined {
   const v = process.env[key];
@@ -20,12 +20,12 @@ function envBool(key: string, fallback: boolean): boolean {
 }
 
 /**
- * Merges `oneauth.config.ts` with environment overrides.
+ * Merges `ssso.config.ts` with environment overrides.
  * - Branding / TTLs: optional env overrides (see .env.example)
- * - Secrets: env only, never in oneauth.config.ts
+ * - Secrets: env only, never in ssso.config.ts
  */
-export function getConfig(): ResolvedOneAuthConfig {
-  const file = baseConfig as OneAuthConfig;
+export function getConfig(): ResolvedSssoConfig {
+  const file = baseConfig as SssoConfig;
 
   return {
     app: {
@@ -40,6 +40,18 @@ export function getConfig(): ResolvedOneAuthConfig {
       authBase:
         env("NEXT_PUBLIC_AUTH_URL") ??
         file.urls.authBase,
+      platformBase:
+        env("NEXT_PUBLIC_PLATFORM_URL") ??
+        file.urls.platformBase ??
+        env("NEXT_PUBLIC_AUTH_URL") ??
+        file.urls.authBase,
+    },
+    deployment: {
+      mode:
+        env("DEPLOYMENT_MODE") === "saas" ? "saas" : file.deployment.mode,
+      tenantDomainSuffix:
+        env("TENANT_DOMAIN_SUFFIX") ?? file.deployment.tenantDomainSuffix,
+      reservedSlugs: file.deployment.reservedSlugs,
     },
     tokens: {
       accessTokenTtlSeconds: envInt(
@@ -69,6 +81,10 @@ export function getConfig(): ResolvedOneAuthConfig {
       passwordResetTokenTtlHours: envInt(
         "PASSWORD_RESET_TOKEN_TTL_HOURS",
         file.email.passwordResetTokenTtlHours
+      ),
+      inviteTokenTtlHours: envInt(
+        "INVITE_TOKEN_TTL_HOURS",
+        file.email.inviteTokenTtlHours
       ),
     },
     security: {
@@ -117,6 +133,10 @@ export function getConfig(): ResolvedOneAuthConfig {
         "AUDIT_RETENTION_DAYS",
         file.features.auditRetentionDays
       ),
+      multiTenant: envBool(
+        "MULTI_TENANT_ENABLED",
+        file.features.multiTenant
+      ),
     },
     secrets: {
       mongodbUri: env("MONGODB_URI"),
@@ -124,6 +144,7 @@ export function getConfig(): ResolvedOneAuthConfig {
       refreshPepper: env("REFRESH_PEPPER"),
       resendApiKey: env("RESEND_API_KEY"),
       emailFrom: env("EMAIL_FROM"),
+      redisUrl: env("REDIS_URL"),
     },
   };
 }
@@ -136,13 +157,22 @@ export function isEmailConfigured(): boolean {
 /** Client-safe subset (no secrets) */
 export function getPublicConfig() {
   const c = getConfig();
+  const saas = c.deployment.mode === "saas" && c.features.multiTenant;
   return {
     app: c.app,
     urls: c.urls,
+    deployment: {
+      mode: c.deployment.mode,
+      tenantDomainSuffix: c.deployment.tenantDomainSuffix,
+      multiTenant: c.features.multiTenant,
+      saas,
+      workspaceCollaboration:
+        c.features.multiTenant || c.deployment.mode === "saas",
+    },
     features: {
       requireEmailVerification: c.features.requireEmailVerification,
     },
   };
 }
 
-export type { OneAuthConfig, ResolvedOneAuthConfig };
+export type { SssoConfig, ResolvedSssoConfig };

@@ -1,7 +1,7 @@
 {
-  "name": "@oneauth/node",
+  "name": "@ssso/node",
   "version": "0.1.0",
-  "description": "OneAuth Node/Express JWT verification middleware",
+  "description": "SSSO Node/Express JWT verification middleware",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -3,6 +3,18 @@ import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 const auditLogSchema = new Schema(
   {
     action: { type: String, required: true, index: true },
+    plane: {
+      type: String,
+      enum: ["platform", "tenant"],
+      default: "platform",
+      index: true,
+    },
+    workspaceId: {
+      type: Schema.Types.ObjectId,
+      ref: "Workspace",
+      default: null,
+      index: true,
+    },
     userId: { type: Schema.Types.ObjectId, ref: "User", index: true },
     email: { type: String, lowercase: true, trim: true },
     ip: { type: String, default: "unknown" },
@@ -14,6 +26,7 @@ const auditLogSchema = new Schema(
 );
 
 auditLogSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+auditLogSchema.index({ workspaceId: 1, createdAt: -1 });
 
 export type AuditLogDocument = InferSchemaType<typeof auditLogSchema> & {
   _id: mongoose.Types.ObjectId;

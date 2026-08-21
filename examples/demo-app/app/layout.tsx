@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { Providers } from "./providers";
-import { Navbar } from "@/components/Navbar";
+import { AppShell } from "@/components/AppShell";
 import { SetupBanner } from "@/components/SetupBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OneAuth SDK Demo",
-  description: "Full example: @oneauth/react, @oneauth/core, @oneauth/node",
+  title: "Pulse — OneAuth demo app",
+  description:
+    "Real-world SaaS example: projects, protected APIs, SSO with OneAuth",
 };
 
 export default function RootLayout({
@@ -17,8 +18,7 @@ export default function RootLayout({
       <body className="min-h-screen antialiased">
         <Providers>
           <SetupBanner />
-          <Navbar />
-          <main className="mx-auto max-w-4xl px-4 py-10">{children}</main>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

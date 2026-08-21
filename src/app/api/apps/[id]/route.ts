@@ -1,4 +1,4 @@
-import { getAuthenticatedUser } from "@/lib/auth/request";
+import { requireWorkspaceRole, getAuthenticatedUser } from "@/lib/auth/request";
 import {
   toPublicApp,
   updateApp,
@@ -9,6 +9,20 @@ import { jsonOk, handleApiError } from "@/lib/api/response";
 import { connectDb, isDbConfigured } from "@/lib/db/mongoose";
 import { requireAuthSecrets } from "@/lib/auth/secrets";
 import { AuthError } from "@/lib/auth/errors";
+import { isMultiTenantEnabled } from "@/lib/config/deployment";
+import { ensureDefaultWorkspace } from "@/lib/workspace/service";
+
+async function resolveWorkspaceId(
+  authorization: string | null
+): Promise<string> {
+  if (isMultiTenantEnabled()) {
+    const ctx = await requireWorkspaceRole(authorization, "viewer");
+    return ctx.workspaceId!;
+  }
+  const { user } = await getAuthenticatedUser(authorization);
+  const ws = await ensureDefaultWorkspace(user._id.toString(), user.email);
+  return ws._id.toString();
+}
 
 export async function PATCH(
   request: Request,
@@ -21,9 +35,12 @@ export async function PATCH(
     requireAuthSecrets();
     await connectDb();
 
-    const { user } = await getAuthenticatedUser(
-      request.headers.get("authorization")
-    );
+    const auth = request.headers.get("authorization");
+    const workspaceId = await resolveWorkspaceId(auth);
+
+    if (isMultiTenantEnabled()) {
+      await requireWorkspaceRole(auth, "developer");
+    }
 
     const { id } = await context.params;
     const body = await request.json();
@@ -37,8 +54,7 @@ export async function PATCH(
       );
     }
 
-    const app = await updateApp(user._id.toString(), id, parsed.data);
-
+    const app = await updateApp(workspaceId, id, parsed.data);
     return jsonOk({ app: toPublicApp(app) });
   } catch (err) {
     return handleApiError(err);
@@ -56,12 +72,15 @@ export async function DELETE(
     requireAuthSecrets();
     await connectDb();
 
-    const { user } = await getAuthenticatedUser(
-      request.headers.get("authorization")
-    );
+    const auth = request.headers.get("authorization");
+    const workspaceId = await resolveWorkspaceId(auth);
+
+    if (isMultiTenantEnabled()) {
+      await requireWorkspaceRole(auth, "admin");
+    }
 
     const { id } = await context.params;
-    await deleteAppForOwner(user._id.toString(), id);
+    await deleteAppForOwner(workspaceId, id);
 
     return jsonOk({ success: true });
   } catch (err) {

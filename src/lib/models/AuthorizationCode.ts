@@ -3,10 +3,19 @@ import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 const authorizationCodeSchema = new Schema(
   {
     codeHash: { type: String, required: true, unique: true },
+    workspaceId: {
+      type: Schema.Types.ObjectId,
+      ref: "Workspace",
+      index: true,
+    },
+    endUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "EndUser",
+    },
+    /** Legacy personal-mode OAuth subject */
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
     clientId: { type: String, required: true, index: true },
     redirectUri: { type: String, required: true },

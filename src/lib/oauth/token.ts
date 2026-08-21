@@ -1,7 +1,9 @@
 import { connectDb } from "@/lib/db/mongoose";
 import { User } from "@/lib/models/User";
+import { EndUser } from "@/lib/models/EndUser";
 import { AuthError } from "@/lib/auth/errors";
 import { toPublicUser } from "@/lib/auth/session";
+import { toPublicEndUser } from "@/lib/end-user/session";
 import { verifyClientSecret } from "./credentials";
 import { findAppByClientId } from "./apps";
 import { assertTokenExchangeForPublicApp } from "./pkce-policy";
@@ -38,14 +40,32 @@ export async function exchangeAuthorizationCode(input: TokenRequestInput) {
     }
   }
 
-  const { userId } = await consumeAuthorizationCode(
+  const grant = await consumeAuthorizationCode(
     input.code,
     input.client_id,
     input.redirect_uri,
     input.code_verifier
   );
 
-  const user = await User.findById(userId);
+  if (!app.workspaceId || app.workspaceId.toString() !== grant.workspaceId) {
+    throw new AuthError("Invalid authorization code", 400, "invalid_grant");
+  }
+
+  if (grant.isEndUser) {
+    const user = await EndUser.findById(grant.subjectId);
+    if (!user) {
+      throw new AuthError("User not found", 400, "invalid_grant");
+    }
+    const tokens = issueClientAccessToken(
+      user._id.toString(),
+      user.email,
+      input.client_id,
+      grant.workspaceId
+    );
+    return { ...tokens, user: toPublicEndUser(user) };
+  }
+
+  const user = await User.findById(grant.subjectId);
   if (!user) {
     throw new AuthError("User not found", 400, "invalid_grant");
   }
@@ -53,7 +73,8 @@ export async function exchangeAuthorizationCode(input: TokenRequestInput) {
   const tokens = issueClientAccessToken(
     user._id.toString(),
     user.email,
-    input.client_id
+    input.client_id,
+    grant.workspaceId
   );
 
   return {

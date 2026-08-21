@@ -1,10 +1,10 @@
-import type { OneAuthConfig, OneAuthUser, TokenResponse } from "./types.js";
-export declare class OneAuthClient {
+import type { SssoConfig, SssoUser, TokenResponse, WorkspacePublicConfig } from "./types.js";
+export declare class SssoClient {
     private readonly config;
     private readonly authUrl;
     private readonly storage;
     private readonly usePkce;
-    constructor(config: OneAuthConfig);
+    constructor(config: SssoConfig);
     /** Build OAuth authorize URL (with optional PKCE S256) */
     buildAuthorizeUrl(state?: string): Promise<string>;
     /** Redirect browser to OneAuth login */
@@ -21,17 +21,19 @@ export declare class OneAuthClient {
         clientSecret?: string;
     }): Promise<{
         accessToken: string;
-        user: OneAuthUser;
+        user: SssoUser;
     }>;
     getToken(): string | null;
     setToken(token: string): void;
     clearToken(): void;
-    getUser(): OneAuthUser | null;
+    getUser(): SssoUser | null;
     isAuthenticated(): boolean;
     handleCallbackViaApi(search: string, apiUrl: string): Promise<{
         accessToken: string;
-        user: OneAuthUser;
+        user: SssoUser;
     }>;
+    /** Fetch the public configuration for the resolved workspace/tenant */
+    getWorkspaceConfig(): Promise<WorkspacePublicConfig>;
     logout(): void;
 }
 //# sourceMappingURL=client.d.ts.map

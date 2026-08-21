@@ -1,5 +1,5 @@
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -9,11 +9,12 @@
 !.yarn/versions
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
 /build
+dist/
 
 # env
 .env
@@ -32,6 +33,7 @@ next-env.d.ts
 .DS_Store
 *.pem
 .vercel
+.codegraph/
 
 # specstory (local tooling)
 .specstory/

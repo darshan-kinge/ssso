@@ -13,6 +13,7 @@ export function toPublicSession(
   return {
     id: session._id.toString(),
     device: session.device,
+    workspaceId: session.workspaceId?.toString() ?? null,
     createdAt: doc.createdAt?.toISOString(),
     expiresAt: session.expiresAt.toISOString(),
     isCurrent: currentSessionId === session._id.toString(),
@@ -20,20 +21,37 @@ export function toPublicSession(
 }
 
 export async function getCurrentSessionId(): Promise<string | null> {
-  const refreshToken = await getRefreshCookie();
+  const refreshToken = await getRefreshCookie("platform");
   if (!refreshToken) return null;
 
   await connectDb();
   const { refreshPepper } = requireAuthSecrets();
   const refreshTokenHash = hashRefreshToken(refreshToken, refreshPepper);
-  const session = await Session.findOne({ refreshTokenHash });
+  const session = await Session.findOne({
+    refreshTokenHash,
+    sessionType: "platform",
+  });
   return session?._id.toString() ?? null;
 }
 
-export async function listSessionsForUser(userId: string) {
+function sessionFilter(userId: string, workspaceId?: string) {
+  const filter: Record<string, unknown> = {
+    userId,
+    sessionType: "platform",
+  };
+  if (workspaceId) {
+    filter.workspaceId = workspaceId;
+  }
+  return filter;
+}
+
+export async function listSessionsForUser(
+  userId: string,
+  workspaceId?: string
+) {
   await connectDb();
   const currentSessionId = await getCurrentSessionId();
-  const sessions = await Session.find({ userId })
+  const sessions = await Session.find(sessionFilter(userId, workspaceId))
     .sort({ createdAt: -1 })
     .limit(50);
 
@@ -45,10 +63,20 @@ export async function listSessionsForUser(userId: string) {
 
 export async function revokeSessionForUser(
   userId: string,
-  sessionId: string
+  sessionId: string,
+  workspaceId?: string
 ): Promise<{ revokedCurrent: boolean }> {
   await connectDb();
-  const session = await Session.findOne({ _id: sessionId, userId });
+  const filter: Record<string, unknown> = {
+    _id: sessionId,
+    userId,
+    sessionType: "platform",
+  };
+  if (workspaceId) {
+    filter.workspaceId = workspaceId;
+  }
+
+  const session = await Session.findOne(filter);
 
   if (!session) {
     throw new AuthError("Session not found", 404, "not_found");
@@ -60,17 +88,20 @@ export async function revokeSessionForUser(
   await Session.deleteOne({ _id: session._id });
 
   if (isCurrent) {
-    await clearRefreshCookie();
+    await clearRefreshCookie("platform");
   }
 
   return { revokedCurrent: isCurrent };
 }
 
-export async function revokeOtherSessionsForUser(userId: string): Promise<number> {
+export async function revokeOtherSessionsForUser(
+  userId: string,
+  workspaceId?: string
+): Promise<number> {
   await connectDb();
   const currentSessionId = await getCurrentSessionId();
 
-  const filter: Record<string, unknown> = { userId };
+  const filter: Record<string, unknown> = sessionFilter(userId, workspaceId);
   if (currentSessionId) {
     filter._id = { $ne: currentSessionId };
   }
@@ -79,9 +110,12 @@ export async function revokeOtherSessionsForUser(userId: string): Promise<number
   return result.deletedCount ?? 0;
 }
 
-export async function revokeAllSessionsForUser(userId: string): Promise<number> {
+export async function revokeAllSessionsForUser(
+  userId: string,
+  workspaceId?: string
+): Promise<number> {
   await connectDb();
-  const result = await Session.deleteMany({ userId });
-  await clearRefreshCookie();
+  const result = await Session.deleteMany(sessionFilter(userId, workspaceId));
+  await clearRefreshCookie("platform");
   return result.deletedCount ?? 0;
 }

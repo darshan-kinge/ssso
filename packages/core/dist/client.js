@@ -10,7 +10,7 @@ function randomState() {
     }
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
-export class OneAuthClient {
+export class SssoClient {
     constructor(config) {
         this.config = config;
         this.authUrl = normalizeAuthUrl(config.authUrl);
@@ -158,6 +158,14 @@ export class OneAuthClient {
             email: "",
         };
         return { accessToken, user };
+    }
+    /** Fetch the public configuration for the resolved workspace/tenant */
+    async getWorkspaceConfig() {
+        const res = await fetch(`${this.authUrl}/api/workspaces/public`);
+        if (!res.ok) {
+            throw new Error("Failed to fetch workspace public configuration");
+        }
+        return res.json();
     }
     logout() {
         this.clearToken();

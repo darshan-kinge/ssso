@@ -12,7 +12,7 @@ export function auth(options: AuthMiddlewareOptions) {
     }
 
     try {
-      req.oneauthUser = verifyAccessToken(token, options);
+      req.sssoUser = verifyAccessToken(token, options);
       next();
     } catch {
       res.status(401).json({ error: "Invalid or expired token", code: "invalid_token" });

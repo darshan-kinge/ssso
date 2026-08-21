@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { authFetch } from "@/lib/auth/api-client";
 import { AuthorizeUrlSample } from "@/components/apps/AuthorizeUrlSample";
+import { useUpdateAppMutation, useRotateSecretMutation, useDeleteAppMutation } from "@/hooks/useApps";
 
 export interface AppRecord {
   id: string;
@@ -15,46 +15,49 @@ export interface AppRecord {
 interface AppCardProps {
   app: AppRecord;
   authOrigin: string;
-  onUpdated: () => void;
-  onDeleted: () => void;
+  onUpdated?: () => void;
+  onDeleted?: () => void;
 }
 
 export function AppCard({ app, authOrigin, onUpdated, onDeleted }: AppCardProps) {
   const [editing, setEditing] = useState(false);
   const [redirectUrls, setRedirectUrls] = useState(app.redirectUrls.join("\n"));
-  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [clientType, setClientType] = useState(app.clientType ?? "public");
+
+  const updateAppMutation = useUpdateAppMutation();
+  const rotateSecretMutation = useRotateSecretMutation();
+  const deleteAppMutation = useDeleteAppMutation();
+
+  const isSaving = updateAppMutation.isPending;
+  const isRotating = rotateSecretMutation.isPending;
+  const isDeleting = deleteAppMutation.isPending;
+  const busy = isSaving || isRotating || isDeleting;
 
   useEffect(() => {
     setClientType(app.clientType ?? "public");
   }, [app.clientType]);
 
   async function saveRedirects() {
-    setBusy("save");
     setError(null);
     const urls = redirectUrls
       .split("\n")
       .map((u) => u.trim())
       .filter(Boolean);
 
-    const res = await authFetch(`/api/apps/${app.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ redirectUrls: urls, clientType }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Update failed");
-      setBusy(null);
-      return;
-    }
-
-    setEditing(false);
-    setBusy(null);
-    onUpdated();
+    updateAppMutation.mutate(
+      { id: app.id, redirectUrls: urls, clientType },
+      {
+        onSuccess: () => {
+          setEditing(false);
+          onUpdated?.();
+        },
+        onError: (err) => {
+          setError(err.message || "Update failed");
+        },
+      }
+    );
   }
 
   async function rotateSecret() {
@@ -62,64 +65,60 @@ export function AppCard({ app, authOrigin, onUpdated, onDeleted }: AppCardProps)
       return;
     }
 
-    setBusy("rotate");
     setError(null);
     setNewSecret(null);
 
-    const res = await authFetch(`/api/apps/${app.id}/rotate-secret`, {
-      method: "POST",
+    rotateSecretMutation.mutate(app.id, {
+      onSuccess: (secret) => {
+        setNewSecret(secret);
+        onUpdated?.();
+      },
+      onError: (err) => {
+        setError(err.message || "Rotation failed");
+      },
     });
-
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Rotation failed");
-      setBusy(null);
-      return;
-    }
-
-    setNewSecret(data.clientSecret);
-    setBusy(null);
   }
 
   async function deleteApp() {
     if (!confirm(`Delete "${app.name}"? This cannot be undone.`)) return;
 
-    setBusy("delete");
-    const res = await authFetch(`/api/apps/${app.id}`, { method: "DELETE" });
+    setError(null);
 
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Delete failed");
-      setBusy(null);
-      return;
-    }
-
-    onDeleted();
+    deleteAppMutation.mutate(app.id, {
+      onSuccess: () => {
+        onDeleted?.();
+      },
+      onError: (err) => {
+        setError(err.message || "Delete failed");
+      },
+    });
   }
 
   const primaryRedirect = app.redirectUrls[0];
 
   return (
-    <li className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 text-sm">
-      <div className="flex items-start justify-between gap-2">
+    <li className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <p className="font-medium">{app.name}</p>
-          <span className="mt-1 inline-block rounded bg-[var(--background)] px-1.5 py-0.5 text-xs text-[var(--muted)]">
-            {clientType}
+          <h3 className="font-bold text-slate-900 text-base leading-none">{app.name}</h3>
+          <span className="mt-2.5 inline-block rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+            {clientType} app
           </span>
         </div>
-        <span className="font-mono text-xs text-[var(--muted)]">{app.clientId}</span>
+        <span className="font-mono text-xs text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded select-all self-start">
+          {app.clientId}
+        </span>
       </div>
 
       {editing && (
-        <div className="mt-3">
-          <label className="text-xs text-[var(--muted)]">Client type</label>
+        <div className="mt-4 space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Client type</label>
           <select
             value={clientType}
             onChange={(e) =>
               setClientType(e.target.value as "public" | "confidential")
             }
-            className="mt-1 w-full rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-xs"
+            className="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-xs text-slate-900 outline-none cursor-pointer focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
           >
             <option value="public">Public (PKCE required)</option>
             <option value="confidential">Confidential (server secret)</option>
@@ -128,22 +127,22 @@ export function AppCard({ app, authOrigin, onUpdated, onDeleted }: AppCardProps)
       )}
 
       {editing ? (
-        <div className="mt-3 space-y-2">
-          <label className="text-xs text-[var(--muted)]">
+        <div className="mt-4 space-y-2">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Redirect URLs (one per line)
           </label>
           <textarea
             value={redirectUrls}
             onChange={(e) => setRedirectUrls(e.target.value)}
             rows={3}
-            className="w-full rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 font-mono text-xs"
+            className="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-xs font-mono text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all"
           />
           <div className="flex gap-2">
             <button
               type="button"
-              disabled={busy === "save"}
+              disabled={isSaving}
               onClick={saveRedirects}
-              className="rounded bg-[var(--accent)] px-3 py-1 text-xs text-white"
+              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors"
             >
               Save
             </button>
@@ -153,16 +152,19 @@ export function AppCard({ app, authOrigin, onUpdated, onDeleted }: AppCardProps)
                 setEditing(false);
                 setRedirectUrls(app.redirectUrls.join("\n"));
               }}
-              className="rounded border border-[var(--border)] px-3 py-1 text-xs"
+              className="inline-flex items-center justify-center rounded-lg bg-white border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
           </div>
         </div>
       ) : (
-        <p className="mt-2 break-all text-xs text-[var(--muted)]">
-          {app.redirectUrls.join(" · ")}
-        </p>
+        <div className="space-y-1">
+          <span className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Redirect URLs</span>
+          <p className="font-mono text-xs text-slate-600 font-medium break-all leading-normal">
+            {app.redirectUrls.join(" · ")}
+          </p>
+        </div>
       )}
 
       {authOrigin && primaryRedirect && (
@@ -175,38 +177,38 @@ export function AppCard({ app, authOrigin, onUpdated, onDeleted }: AppCardProps)
       )}
 
       {newSecret && (
-        <div className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 p-2 font-mono text-xs break-all">
-          New client_secret: {newSecret}
+        <div className="rounded-lg border border-red-200 bg-red-50/50 p-3 font-mono text-xs text-slate-700 break-all select-all leading-normal">
+          <span className="text-red-700 font-semibold select-none uppercase text-[10px] tracking-wider pr-1">new_client_secret:</span> {newSecret}
         </div>
       )}
 
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs font-semibold text-red-600">{error}</p>}
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="pt-4 border-t border-slate-100 flex flex-wrap gap-4 text-xs font-semibold text-slate-500">
         {!editing && (
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="text-xs text-[var(--accent)] hover:underline"
+            className="text-indigo-600 hover:text-indigo-500 hover:underline transition-colors"
           >
-            Edit redirects
+            Edit Redirects
           </button>
         )}
         <button
           type="button"
-          disabled={busy !== null}
+          disabled={busy}
           onClick={rotateSecret}
-          className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
+          className="text-slate-600 hover:text-slate-900 hover:underline transition disabled:opacity-50"
         >
-          {busy === "rotate" ? "Rotating…" : "Rotate secret"}
+          {isRotating ? "Rotating…" : "Rotate Secret"}
         </button>
         <button
           type="button"
-          disabled={busy !== null}
+          disabled={busy}
           onClick={deleteApp}
-          className="text-xs text-red-400 hover:text-red-300"
+          className="text-red-600 hover:text-red-500 hover:underline transition disabled:opacity-50"
         >
-          {busy === "delete" ? "Deleting…" : "Delete"}
+          {isDeleting ? "Deleting…" : "Delete Application"}
         </button>
       </div>
     </li>

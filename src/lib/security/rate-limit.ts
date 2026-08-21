@@ -3,6 +3,8 @@ import { connectDb } from "@/lib/db/mongoose";
 import { RateLimit } from "@/lib/models/RateLimit";
 import { AuthError } from "@/lib/auth/errors";
 import { getClientIp } from "./client-ip";
+import { HEADER_PLANE, HEADER_WORKSPACE_SLUG } from "@/lib/workspace/headers";
+import { getRedisClient } from "@/lib/db/redis";
 
 export type RateLimitScope =
   | "login"
@@ -45,17 +47,57 @@ function limitsForScope(scope: RateLimitScope): {
   }
 }
 
+function rateLimitKey(request: Request, scope: RateLimitScope): string {
+  const ip = getClientIp(request);
+  const plane = request.headers.get(HEADER_PLANE);
+  const slug = request.headers.get(HEADER_WORKSPACE_SLUG);
+
+  if (plane === "tenant" && slug) {
+    return `${scope}:tenant:${slug}:${ip}`;
+  }
+
+  return `${scope}:${ip}`;
+}
+
 export async function enforceRateLimit(
   request: Request,
   scope: RateLimitScope
 ): Promise<void> {
   if (!getConfig().features.rateLimitEnabled) return;
 
+  const key = rateLimitKey(request, scope);
+  const { max, windowSeconds } = limitsForScope(scope);
+
+  const redis = getRedisClient();
+  if (redis) {
+    try {
+      const redisKey = `ratelimit:${key}`;
+      const count = await redis.incr(redisKey);
+      if (count === 1) {
+        await redis.expire(redisKey, windowSeconds);
+      } else {
+        const ttl = await redis.ttl(redisKey);
+        if (ttl === -1) {
+          await redis.expire(redisKey, windowSeconds);
+        }
+      }
+
+      if (count > max) {
+        throw new AuthError(
+          "Too many requests. Please try again later.",
+          429,
+          "rate_limited"
+        );
+      }
+      return;
+    } catch (err) {
+      if (err instanceof AuthError) throw err;
+      console.error("Redis rate limit failed, falling back to Mongoose:", err);
+    }
+  }
+
   await connectDb();
 
-  const ip = getClientIp(request);
-  const { max, windowSeconds } = limitsForScope(scope);
-  const key = `${scope}:${ip}`;
   const now = new Date();
   const expiresAt = new Date(now.getTime() + windowSeconds * 1000);
 

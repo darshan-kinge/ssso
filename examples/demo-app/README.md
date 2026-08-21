@@ -1,89 +1,89 @@
-# OneAuth SDK — full demo application
+# Pulse — real-world OneAuth demo
 
-A complete **consumer app** (port **3001**) that shows how to integrate all OneAuth SDKs with a real SSO flow.
+**Pulse** is a sample team workspace (projects + tasks) that shows how a production app integrates OneAuth — not a bare SDK playground.
+
+Runs on **http://localhost:3001** against OneAuth on **:3000**.
 
 ## What it demonstrates
 
-| SDK | Where in this app |
-|-----|-------------------|
-| **@oneauth/react** | `AuthProvider`, `useAuth()`, `ProtectedRoute` on dashboard & API demo |
-| **@oneauth/core** | `/core-demo` — `OneAuthClient`, `buildAuthorizeUrl`, token decode |
-| **@oneauth/node** | `/api/protected/*` — `verifyAccessToken` (same as Express `auth()`) |
-| **PKCE** | Enabled by default — no secret required in browser |
+| Real-world pattern | Implementation |
+|--------------------|----------------|
+| Marketing landing + app | `/` → sign in → `/projects` |
+| OAuth + PKCE | `@oneauth/react` + server `/api/auth/callback` |
+| Protected UI | `ProtectedRoute` on app pages |
+| Protected REST API | `/api/projects/*` with `@oneauth/node` `verifyAccessToken` |
+| Per-user data | JWT `sub` scopes in-memory project store |
+| Account / SSO | `/settings`, re-authorize, link to OneAuth `/account` |
+| Integrator docs | `/dev` — API tester + flow diagram |
 
 ## Prerequisites
 
-1. **OneAuth** running at http://localhost:3000 (from repo root: `npm run dev`)
-2. MongoDB + secrets configured in root `.env.local`
-3. An app registered in OneAuth with redirect URL:
+1. OneAuth: `npm run dev` (repo root)
+2. MongoDB + secrets in root `.env.local`
+3. **SaaS mode:** create a workspace at http://localhost:3000/workspace/new (e.g. slug `acme`), register a **public** app on http://localhost:3000/dashboard with redirect `http://localhost:3001/callback`
+4. **Personal mode:** register at http://localhost:3000/apps instead
 
-   ```
-   http://localhost:3001/callback
-   ```
-
-   Create at http://localhost:3000/apps — save `client_id` and `client_secret`.
+Full SaaS walkthrough: **[docs/SAAS-E2E.md](../../docs/SAAS-E2E.md)**
 
 ## Setup
 
 ```bash
-# From repo root
 cp examples/demo-app/.env.example examples/demo-app/.env.local
-# Edit .env.local with your client_id, client_secret, and JWT_SECRET
+# NEXT_PUBLIC_ONEAUTH_CLIENT_ID, ONEAUTH_JWT_SECRET (same as OneAuth JWT_SECRET)
+# ONEAUTH_CLIENT_SECRET optional when using PKCE
 
 npm install
 npm run dev:demo
 ```
 
-Open **http://localhost:3001**
+Open **http://localhost:3001** → **Sign in with OneAuth** → manage projects.
 
-## Pages
+## Routes
 
 | Route | Description |
 |-------|-------------|
-| `/` | Overview + sign in |
-| `/callback` | OAuth `redirect_uri` (code exchange via `/api/auth/callback`) |
-| `/dashboard` | Protected user profile + JWT claims |
-| `/api-demo` | Call `/api/protected/me` and `/data` with Bearer token |
-| `/core-demo` | Direct `@oneauth/core` usage |
+| `/` | Landing (redirects to projects when signed in) |
+| `/projects` | Project list + create |
+| `/projects/[id]` | Tasks for a project |
+| `/settings` | Profile, sign out, SSO test |
+| `/callback` | OAuth redirect (do not link manually) |
+| `/dev` | SDK / API reference for developers |
+| `/dashboard`, `/api-demo`, `/core-demo` | Redirect to new routes |
 
-## Env vars
+## Env
+
+**SaaS (tenant OAuth):**
+
+```env
+NEXT_PUBLIC_AUTH_URL=http://acme.localhost:3000
+NEXT_PUBLIC_ONEAUTH_WORKSPACE_SLUG=acme
+NEXT_PUBLIC_ONEAUTH_CLIENT_ID=oa_...
+ONEAUTH_JWT_SECRET=...
+NEXT_PUBLIC_ONEAUTH_REDIRECT_URI=http://localhost:3001/callback
+```
+
+**Personal (single host):**
 
 ```env
 NEXT_PUBLIC_AUTH_URL=http://localhost:3000
 NEXT_PUBLIC_ONEAUTH_CLIENT_ID=oa_...
-ONEAUTH_CLIENT_SECRET=...
-ONEAUTH_JWT_SECRET=...          # same as OneAuth JWT_SECRET
-NEXT_PUBLIC_ONEAUTH_REDIRECT_URI=http://localhost:3001/callback
 ```
 
 ## Architecture
 
 ```txt
-Browser (3001)                    OneAuth (3000)
-     │                                  │
-     ├─ login() ──redirect────────────► /authorize
-     │◄──redirect ?code─────────────────┤
-     ├─ POST /api/auth/callback ───────► POST /api/oauth/token
-     │   (client_secret server-side)    │
-     ├─ stores access_token             │
-     └─ GET /api/protected/me           │
-         Authorization: Bearer         │  (JWT signed by OneAuth)
-         verify @oneauth/node           │
+Browser (Pulse :3001)              Tenant (acme.localhost:3000)
+     │                                    │
+     ├─ login() PKCE ───────────────────► /authorize
+     │◄── ?code ──────────────────────────┤
+     ├─ POST /api/auth/callback ─────────► POST /api/oauth/token
+     ├─ Bearer on /api/projects ─────────► JWT verified (@oneauth/node)
+     └─ UI: projects, tasks, settings
 ```
+
+**Note:** Project data is stored in memory (resets on server restart / cold start). Suitable for demo; use a database in production.
 
 ## Scripts
 
-From **repo root**:
-
-- `npm run dev:demo` — dev server on port 3001
-- `npm run build:demo` — production build
-
-From **this folder**:
-
-- `npm run dev` / `npm run build`
-
-## SSO test
-
-1. Sign in on the demo app
-2. Open http://localhost:3000 in another tab (optional)
-3. Click **Re-authorize (SSO test)** on the dashboard — you should return without entering a password
+- Repo root: `npm run dev:demo`, `npm run build:demo`
+- This folder: `npm run dev`, `npm run build`

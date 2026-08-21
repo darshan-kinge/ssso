@@ -11,7 +11,7 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
   const config = getConfig();
 
   if (!isEmailConfigured()) {
-    console.info("[OneAuth email — dev console]");
+    console.info("[SSSO email — dev console]");
     console.info(`To: ${input.to}`);
     console.info(`Subject: ${input.subject}`);
     console.info(input.text);

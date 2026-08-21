@@ -1,5 +1,5 @@
-export interface OneAuthConfig {
-    /** OneAuth base URL, e.g. https://auth.example.com */
+export interface SssoConfig {
+    /** SSSO base URL, e.g. https://auth.example.com */
     authUrl: string;
     clientId: string;
     /** Server-side only — never expose in browser bundles */
@@ -13,7 +13,7 @@ export interface OneAuthConfig {
     /** Use PKCE (recommended for public / mobile clients). Default: true */
     usePkce?: boolean;
 }
-export interface OneAuthUser {
+export interface SssoUser {
     id: string;
     email: string;
     isVerified?: boolean;
@@ -35,5 +35,17 @@ export interface AccessTokenClaims {
     client_id?: string;
     exp?: number;
     iat?: number;
+}
+export interface WorkspacePublicConfig {
+    multiTenant: boolean;
+    id?: string;
+    slug?: string;
+    name: string;
+    settings: {
+        logoUrl: string | null;
+        primaryColor: string | null;
+        themeType: "neo-brutalist" | "simple-bg" | "custom-colors";
+        loginMode: "open" | "sso-only";
+    };
 }
 //# sourceMappingURL=types.d.ts.map

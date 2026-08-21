@@ -7,11 +7,22 @@ import { buildAuthorizeQuery } from "@/lib/oauth/params";
 
 interface AuthorizePanelProps {
   brandName: string;
+  workspaceName?: string;
+  workspaceSettings?: {
+    logoUrl?: string | null;
+    primaryColor?: string | null;
+  } | null;
   appName: string;
   params: AuthorizeParams;
 }
 
-export function AuthorizePanel({ brandName, appName, params }: AuthorizePanelProps) {
+export function AuthorizePanel({
+  brandName,
+  workspaceName,
+  workspaceSettings,
+  appName,
+  params,
+}: AuthorizePanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +45,7 @@ export function AuthorizePanel({ brandName, appName, params }: AuthorizePanelPro
 
       if (!res.ok) {
         if (data.code === "login_required") {
-          window.location.href = loginHref;
+          window.location.assign(loginHref);
           return;
         }
         setError(data.error ?? "Authorization failed");
@@ -50,36 +61,53 @@ export function AuthorizePanel({ brandName, appName, params }: AuthorizePanelPro
   }
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-      <p className="text-sm text-[var(--muted)]">{brandName} SSO</p>
-      <h2 className="mt-2 text-xl font-semibold">
-        Sign in to <span className="text-[var(--accent)]">{appName}</span>
+    <div className="space-y-4">
+      {workspaceSettings?.logoUrl ? (
+        <div className="mb-6 flex justify-center">
+          <img
+            src={workspaceSettings.logoUrl}
+            alt={`${workspaceName || brandName} logo`}
+            className="auth-logo-img max-h-16 max-w-full object-contain p-2"
+          />
+        </div>
+      ) : null}
+
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+        {workspaceName ? `${workspaceName} • ` : ""}
+        {brandName}
+      </p>
+      
+      <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+        Sign in to <span className="underline decoration-indigo-500 decoration-2">{appName}</span>
       </h2>
-      <p className="mt-3 text-sm text-[var(--muted)]">
+      
+      <p className="auth-info-box text-sm text-slate-600 leading-relaxed p-4 bg-slate-50 border border-slate-100 rounded-lg">
         <strong>{appName}</strong> will receive a secure access token. You will
         be redirected back after approving.
       </p>
-      <p className="mt-2 break-all font-mono text-xs text-[var(--muted)]">
-        {params.redirect_uri}
-      </p>
+
+
 
       {error && (
-        <p className="mt-4 text-sm text-red-400" role="alert">
+        <div className="text-xs font-medium text-red-800 bg-red-50 border border-red-200 p-3 rounded-lg" role="alert">
           {error}
-        </p>
+        </div>
       )}
 
       <button
         type="button"
         onClick={handleContinue}
         disabled={loading}
-        className="mt-6 w-full rounded-lg bg-[var(--accent)] py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+        style={{
+          backgroundColor: workspaceSettings?.primaryColor || "var(--tenant-primary, #4f46e5)",
+        }}
+        className="auth-button w-full py-3 text-sm font-semibold rounded-lg text-white shadow-sm hover:brightness-95 active:scale-98 transition-all disabled:opacity-50"
       >
         {loading ? "Redirecting…" : `Continue to ${appName}`}
       </button>
 
-      <p className="mt-4 text-center text-sm text-[var(--muted)]">
-        <Link href={loginHref} className="text-[var(--accent)] hover:underline">
+      <p className="text-center text-sm text-slate-500">
+        <Link href={loginHref} className="text-indigo-600 font-semibold hover:text-indigo-500 transition-colors">
           Sign in with another account
         </Link>
       </p>

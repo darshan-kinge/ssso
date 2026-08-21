@@ -1,5 +1,5 @@
 import { loginSchema } from "@/lib/validators/auth";
-import { loginUser } from "@/lib/auth/service";
+import { loginForRequestPlane } from "@/lib/auth/plane-auth";
 import { getDeviceLabel } from "@/lib/auth/request";
 import { jsonOk } from "@/lib/api/response";
 import { withAuthRoute } from "@/lib/api/with-auth-route";
@@ -23,7 +23,7 @@ export const POST = withAuthRoute(
 
     try {
       const device = await getDeviceLabel();
-      const result = await loginUser(parsed.data, device);
+      const result = await loginForRequestPlane(parsed.data, device);
       await logAudit({
         action: "login.success",
         request,

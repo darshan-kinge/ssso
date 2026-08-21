@@ -80,16 +80,16 @@ export function AccountPanel() {
   }
 
   if (loading) {
-    return <p className="text-sm text-[var(--muted)]">Loading…</p>;
+    return <p className="text-sm text-slate-400 animate-pulse">Loading…</p>;
   }
 
   if (!user) {
     return (
-      <div>
-        <p className="text-sm text-red-400">{error ?? "Not signed in."}</p>
+      <div className="bg-red-50 text-red-800 border border-red-200 p-4 rounded-xl text-sm flex items-center justify-between">
+        <span>{error ?? "Not signed in."}</span>
         <Link
           href="/login"
-          className="mt-4 inline-block text-sm text-[var(--accent)] hover:underline"
+          className="text-indigo-600 hover:text-indigo-500 font-semibold transition-colors"
         >
           Sign in
         </Link>
@@ -99,51 +99,62 @@ export function AccountPanel() {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-        <p className="text-sm text-[var(--muted)]">Signed in as</p>
-        <p className="mt-1 text-lg font-medium">{user.email}</p>
-        <dl className="mt-4 space-y-2 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-[var(--muted)]">User ID</dt>
-            <dd className="truncate font-mono text-xs">{user.id}</dd>
+      {/* Profile Details */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Signed in as</span>
+        <p className="mt-1.5 text-xl font-bold tracking-tight text-slate-900 leading-none">{user.email}</p>
+        <dl className="mt-6 space-y-3 text-xs border-t border-slate-100 pt-4">
+          <div className="flex justify-between items-center gap-4">
+            <dt className="text-slate-500 font-medium">User ID</dt>
+            <dd className="truncate font-mono text-xs text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded select-all">{user.id}</dd>
           </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-[var(--muted)]">Verified</dt>
-            <dd>{user.isVerified ? "Yes" : "No"}</dd>
+          <div className="flex justify-between items-center gap-4">
+            <dt className="text-slate-500 font-medium">Email Verified</dt>
+            <dd className="font-semibold uppercase text-[10px]">
+              {user.isVerified ? (
+                <span className="text-emerald-750 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">Yes</span>
+              ) : (
+                <span className="text-red-750 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">No</span>
+              )}
+            </dd>
           </div>
         </dl>
+        
         {!user.isVerified && (
-          <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
-            <p className="text-amber-100">Email not verified.</p>
+          <div className="mt-5 border border-red-200 border-dashed bg-red-50/50 p-4 rounded-xl text-xs space-y-2">
+            <p className="font-semibold text-red-800">Email not verified.</p>
             <button
               type="button"
               onClick={resendVerification}
-              className="mt-2 text-[var(--accent)] hover:underline"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-500 hover:underline transition-colors"
             >
               Resend verification email
             </button>
             {verifyMsg && (
-              <p className="mt-2 text-xs text-[var(--muted)]">{verifyMsg}</p>
+              <p className="text-[10px] font-medium text-slate-500">{verifyMsg}</p>
             )}
           </div>
         )}
+        
         <button
           type="button"
           onClick={handleLogout}
-          className="mt-6 w-full rounded-lg border border-[var(--border)] py-2.5 text-sm font-medium transition hover:border-zinc-600"
+          className="mt-6 w-full inline-flex items-center justify-center rounded-lg bg-red-650 px-4 py-2.5 text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
         >
           Sign out (this device)
         </button>
       </div>
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+      {/* Active Sessions */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <SessionsPanel />
       </div>
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-        <h2 className="font-medium">Security activity</h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Recent sign-ins and account events (Phase 6 audit log).
+      {/* Security Activity */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-2.5 mb-4">Security Activity</h2>
+        <p className="text-xs text-slate-500 leading-relaxed mb-4">
+          Recent events for your active workspace (sign-ins, invites, sessions).
         </p>
         <div className="mt-4">
           <AuditPanel />

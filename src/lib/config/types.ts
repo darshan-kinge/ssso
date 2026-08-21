@@ -1,4 +1,4 @@
-export interface OneAuthConfig {
+export interface SssoConfig {
   app: {
     name: string;
     tagline: string;
@@ -7,6 +7,12 @@ export interface OneAuthConfig {
   };
   urls: {
     authBase: string;
+    platformBase?: string;
+  };
+  deployment: {
+    mode: "personal" | "saas";
+    tenantDomainSuffix: string;
+    reservedSlugs: string[];
   };
   tokens: {
     accessTokenTtlSeconds: number;
@@ -21,6 +27,7 @@ export interface OneAuthConfig {
   email: {
     verificationTokenTtlHours: number;
     passwordResetTokenTtlHours: number;
+    inviteTokenTtlHours: number;
   };
   security: {
     bcryptRounds: number;
@@ -41,13 +48,16 @@ export interface OneAuthConfig {
     rateLimitEnabled: boolean;
     auditLogEnabled: boolean;
     auditRetentionDays: number;
+    /** Workspace + end-user split; subdomain tenancy in saas mode */
+    multiTenant: boolean;
   };
 }
 
 /** Resolved config after merging file defaults + environment */
-export interface ResolvedOneAuthConfig extends OneAuthConfig {
+export interface ResolvedSssoConfig extends SssoConfig {
   urls: {
     authBase: string;
+    platformBase: string;
   };
   secrets: {
     mongodbUri: string | undefined;
@@ -55,5 +65,6 @@ export interface ResolvedOneAuthConfig extends OneAuthConfig {
     refreshPepper: string | undefined;
     resendApiKey: string | undefined;
     emailFrom: string | undefined;
+    redisUrl: string | undefined;
   };
 }

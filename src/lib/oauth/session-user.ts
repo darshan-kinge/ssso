@@ -5,20 +5,24 @@ import { getRefreshCookie } from "@/lib/auth/cookies";
 import { hashRefreshToken } from "@/lib/auth/tokens";
 import { requireAuthSecrets } from "@/lib/auth/secrets";
 
-/** Resolve user from auth-domain refresh cookie (SSO silent login). */
+export { getOAuthSubjectFromRefreshCookie } from "./subject";
+
+/** Platform refresh cookie → User (SSO on auth domain, personal mode). */
 export async function getUserFromRefreshCookie(): Promise<UserDocument | null> {
-  const refreshToken = await getRefreshCookie();
+  const refreshToken = await getRefreshCookie("platform");
   if (!refreshToken) return null;
 
   await connectDb();
   const { refreshPepper } = requireAuthSecrets();
   const refreshTokenHash = hashRefreshToken(refreshToken, refreshPepper);
 
-  const session = await Session.findOne({ refreshTokenHash });
+  const session = await Session.findOne({
+    refreshTokenHash,
+    $or: [{ sessionType: "platform" }, { sessionType: { $exists: false } }],
+  });
   if (!session || session.expiresAt < new Date()) {
     return null;
   }
 
-  const user = await User.findById(session.userId);
-  return user;
+  return User.findById(session.userId);
 }

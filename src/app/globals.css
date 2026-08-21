@@ -1,23 +1,145 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #0a0a0b;
-  --foreground: #fafafa;
-  --muted: #a1a1aa;
-  --accent: #3b82f6;
-  --card: #18181b;
-  --border: #27272a;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --accent: #4f46e5; /* Indigo 600 */
+  --secondary: #2563eb; /* Blue 600 */
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --tenant-primary: #4f46e5;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family:
-    system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    sans-serif;
+  background-color: var(--background);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Redefine Brutalist theme scopes to look like a clean, minimal SaaS theme */
+.theme-neo-brutalist,
+.theme-simple,
+.theme-custom {
+  --theme-font: 'Inter', system-ui, sans-serif;
+  font-family: var(--theme-font);
+  background-image: none !important;
+  background-color: var(--background);
+}
+
+.theme-neo-brutalist h1,
+.theme-neo-brutalist h2,
+.theme-neo-brutalist h3,
+.theme-simple h1,
+.theme-simple h2,
+.theme-simple h3,
+.theme-custom h1,
+.theme-custom h2,
+.theme-custom h3 {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+/* Card components */
+.auth-card {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Input elements styling */
+.auth-input {
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background-color: var(--card);
+  color: var(--foreground);
+  transition: all 0.15s ease-in-out;
+}
+.auth-input:focus,
+.theme-neo-brutalist input:focus,
+.theme-neo-brutalist select:focus,
+.theme-neo-brutalist textarea:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  background-color: var(--card) !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+}
+
+/* Button styling */
+.auth-button {
+  border: none;
+  border-radius: 0.375rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  color: #ffffff !important;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+}
+.auth-button:hover {
+  filter: brightness(0.95);
+  opacity: 0.95;
+}
+.auth-button:active {
+  transform: translateY(1px);
+}
+
+/* Logo styling */
+.auth-logo-img {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.15s ease-in-out;
+}
+
+/* Description banner/box */
+.auth-info-box {
+  background-color: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: #475569;
+  transition: all 0.15s ease-in-out;
+}
+
+/* Inner status card/box */
+.auth-status-box {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.15s ease-in-out;
+}
+
+/* Redirect URL preview box */
+.auth-redirect-box {
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 0.75rem;
+  padding: 0.5rem;
+  color: #475569;
+  background-color: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

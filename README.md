@@ -41,16 +41,16 @@ Open http://localhost:3000
 3. **Public** (default): save `client_id` only — use PKCE via SDK  
 4. **Confidential**: also save `client_secret` for server-side token exchange
 
-### 4. Try the demo consumer (port 3001)
+### 4. Try Pulse (demo consumer, port 3001)
 
 ```bash
 cp examples/demo-app/.env.example examples/demo-app/.env.local
-# Fill client_id, client_secret, JWT_SECRET
+# Fill client_id, JWT_SECRET (PKCE public app — secret optional)
 
 npm run dev:demo
 ```
 
-See [examples/demo-app/README.md](examples/demo-app/README.md).
+**Pulse** is a realistic sample app (projects, tasks, protected APIs). See [examples/demo-app/README.md](examples/demo-app/README.md).
 
 ## Project layout
 
@@ -89,6 +89,7 @@ See [docs/DEPLOY.md](docs/DEPLOY.md) for Vercel + MongoDB Atlas.
 - [SECURITY.md](docs/SECURITY.md) — rate limits, audit  
 - [MOBILE-SSO.md](docs/MOBILE-SSO.md) — Android / VR  
 - [DEPLOY.md](docs/DEPLOY.md) — Vercel production setup  
+- [MULTI-TENANT.md](docs/MULTI-TENANT.md) — SaaS plan (split users, subdomains)  
 
 ## PKCE (public clients)
 

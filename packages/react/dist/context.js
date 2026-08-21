@@ -1,10 +1,10 @@
 "use client";
 import { jsx as _jsx } from "react/jsx-runtime";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, } from "react";
-import { OneAuthClient } from "@oneauth/core";
+import { SssoClient } from "@ssso/core";
 const AuthContext = createContext(null);
 export function AuthProvider({ config, callbackApiUrl, autoHandleCallback, onAuthenticated, children, }) {
-    const client = useMemo(() => new OneAuthClient(config), [
+    const client = useMemo(() => new SssoClient(config), [
         config.authUrl,
         config.clientId,
         config.redirectUri,
@@ -76,6 +76,9 @@ export function AuthProvider({ config, callbackApiUrl, autoHandleCallback, onAut
         setUser(null);
         setError(null);
     }, [client]);
+    const getWorkspaceConfig = useCallback(() => {
+        return client.getWorkspaceConfig();
+    }, [client]);
     const value = {
         user,
         token,
@@ -84,6 +87,7 @@ export function AuthProvider({ config, callbackApiUrl, autoHandleCallback, onAut
         isAuthenticated: Boolean(user && token),
         login,
         logout,
+        getWorkspaceConfig,
         client,
     };
     return (_jsx(AuthContext.Provider, { value: value, children: children }));

@@ -1,6 +1,6 @@
-const DEFAULT_TOKEN_KEY = "oneauth_access_token";
-const DEFAULT_STATE_KEY = "oneauth_oauth_state";
-const DEFAULT_PKCE_KEY = "oneauth_code_verifier";
+const DEFAULT_TOKEN_KEY = "ssso_access_token";
+const DEFAULT_STATE_KEY = "ssso_oauth_state";
+const DEFAULT_PKCE_KEY = "ssso_code_verifier";
 export function createStorage(storageKey, stateKey, pkceKey) {
     const tokenKey = storageKey ?? DEFAULT_TOKEN_KEY;
     const oauthStateKey = stateKey ?? DEFAULT_STATE_KEY;

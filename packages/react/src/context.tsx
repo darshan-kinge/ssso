@@ -9,23 +9,24 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { OneAuthClient, type OneAuthConfig, type OneAuthUser } from "@oneauth/core";
+import { SssoClient, type SssoConfig, type SssoUser, type WorkspacePublicConfig } from "@ssso/core";
 
 export interface AuthContextValue {
-  user: OneAuthUser | null;
+  user: SssoUser | null;
   token: string | null;
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
   login: (state?: string) => void;
   logout: () => void;
-  client: OneAuthClient;
+  getWorkspaceConfig: () => Promise<WorkspacePublicConfig>;
+  client: SssoClient;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export interface AuthProviderProps {
-  config: OneAuthConfig;
+  config: SssoConfig;
   /**
    * Your backend route that exchanges the code (recommended for production).
    * Example: `/api/auth/callback`
@@ -35,7 +36,7 @@ export interface AuthProviderProps {
    * Exchange code on callback. Default: true when callbackApiUrl or clientSecret is set.
    */
   autoHandleCallback?: boolean;
-  onAuthenticated?: (user: OneAuthUser, accessToken: string) => void;
+  onAuthenticated?: (user: SssoUser, accessToken: string) => void;
   children: ReactNode;
 }
 
@@ -47,7 +48,7 @@ export function AuthProvider({
   children,
 }: AuthProviderProps) {
   const client = useMemo(
-    () => new OneAuthClient(config),
+    () => new SssoClient(config),
     [
       config.authUrl,
       config.clientId,
@@ -56,7 +57,7 @@ export function AuthProvider({
       config.stateKey,
     ]
   );
-  const [user, setUser] = useState<OneAuthUser | null>(null);
+  const [user, setUser] = useState<SssoUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +138,10 @@ export function AuthProvider({
     setError(null);
   }, [client]);
 
+  const getWorkspaceConfig = useCallback(() => {
+    return client.getWorkspaceConfig();
+  }, [client]);
+
   const value: AuthContextValue = {
     user,
     token,
@@ -145,6 +150,7 @@ export function AuthProvider({
     isAuthenticated: Boolean(user && token),
     login,
     logout,
+    getWorkspaceConfig,
     client,
   };
 

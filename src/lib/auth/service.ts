@@ -4,10 +4,16 @@ import { User } from "@/lib/models/User";
 import { AuthError } from "./errors";
 import { assertPasswordPolicy, hashPassword, verifyPassword } from "./password";
 import { createSession, toPublicUser } from "./session";
+import { isMultiTenantEnabled, isSaasMode } from "@/lib/config/deployment";
+import { ensureDefaultWorkspace } from "@/lib/workspace/service";
 import { createAndSendVerificationEmail } from "./verification";
 import type { LoginInput, SignupInput } from "@/lib/validators/auth";
 
-export async function signupUser(input: SignupInput, device: string) {
+export async function signupUser(
+  input: SignupInput,
+  device: string,
+  oauthReturn?: string | null
+) {
   await connectDb();
   assertPasswordPolicy(input.password);
 
@@ -26,7 +32,10 @@ export async function signupUser(input: SignupInput, device: string) {
   });
 
   if (requireVerify) {
-    await createAndSendVerificationEmail(user);
+    await createAndSendVerificationEmail(user, oauthReturn);
+    if (isMultiTenantEnabled() && !isSaasMode()) {
+      await ensureDefaultWorkspace(user._id.toString(), email);
+    }
     return {
       user: toPublicUser(user),
       verificationRequired: true as const,
@@ -35,7 +44,24 @@ export async function signupUser(input: SignupInput, device: string) {
     };
   }
 
-  const { accessToken } = await createSession(user, device);
+  let accessToken: string;
+  if (isMultiTenantEnabled() && !isSaasMode()) {
+    const workspace = await ensureDefaultWorkspace(
+      user._id.toString(),
+      email
+    );
+    const { getMembership } = await import("@/lib/workspace/service");
+    const membership = await getMembership(
+      user._id.toString(),
+      workspace._id.toString()
+    );
+    ({ accessToken } = await createSession(user, device, {
+      workspaceId: workspace._id.toString(),
+      role: membership?.role ?? "owner",
+    }));
+  } else {
+    ({ accessToken } = await createSession(user, device));
+  }
 
   return {
     accessToken,
@@ -66,7 +92,24 @@ export async function loginUser(input: LoginInput, device: string) {
     );
   }
 
-  const { accessToken } = await createSession(user, device);
+  let accessToken: string;
+  if (isMultiTenantEnabled() && !isSaasMode()) {
+    const workspace = await ensureDefaultWorkspace(
+      user._id.toString(),
+      email
+    );
+    const { getMembership } = await import("@/lib/workspace/service");
+    const membership = await getMembership(
+      user._id.toString(),
+      workspace._id.toString()
+    );
+    ({ accessToken } = await createSession(user, device, {
+      workspaceId: workspace._id.toString(),
+      role: membership?.role ?? "owner",
+    }));
+  } else {
+    ({ accessToken } = await createSession(user, device));
+  }
 
   return {
     accessToken,

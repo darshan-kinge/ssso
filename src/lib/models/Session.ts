@@ -2,13 +2,25 @@ import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 
 const sessionSchema = new Schema(
   {
+    sessionType: {
+      type: String,
+      enum: ["platform", "end_user"],
+      default: "platform",
+      index: true,
+    },
     userId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
       required: true,
       index: true,
     },
+    workspaceId: {
+      type: Schema.Types.ObjectId,
+      ref: "Workspace",
+      default: null,
+      index: true,
+    },
     refreshTokenHash: { type: String, required: true },
+    usedTokenHashes: { type: [String], default: [], index: true },
     device: { type: String, default: "unknown" },
     expiresAt: { type: Date, required: true, index: true },
   },

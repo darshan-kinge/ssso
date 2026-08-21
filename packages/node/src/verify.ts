@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import type { AuthMiddlewareOptions, OneAuthJwtPayload } from "./types.js";
+import type { AuthMiddlewareOptions, SssoJwtPayload } from "./types.js";
 
 export function extractBearerToken(
   authorization: string | undefined | null
@@ -12,8 +12,10 @@ export function extractBearerToken(
 export function verifyAccessToken(
   token: string,
   options: AuthMiddlewareOptions
-): OneAuthJwtPayload {
-  const decoded = jwt.verify(token, options.jwtSecret) as OneAuthJwtPayload;
+): SssoJwtPayload {
+  const decoded = jwt.verify(token, options.jwtSecret, {
+    algorithms: ["HS256"],
+  }) as SssoJwtPayload;
 
   if (!decoded.sub || !decoded.email) {
     throw new Error("Invalid token payload");

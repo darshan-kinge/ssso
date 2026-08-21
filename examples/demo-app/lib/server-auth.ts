@@ -2,21 +2,21 @@ import { NextResponse } from "next/server";
 import {
   extractBearerToken,
   verifyAccessToken,
-  type OneAuthJwtPayload,
-} from "@oneauth/node";
+  type SssoJwtPayload,
+} from "@ssso/node";
 
 export function getJwtSecret(): string | null {
-  const secret = process.env.ONEAUTH_JWT_SECRET;
+  const secret = process.env.SSSO_JWT_SECRET;
   return secret && secret.length >= 32 ? secret : null;
 }
 
 export function requireUser(
   request: Request
-): { user: OneAuthJwtPayload } | NextResponse {
+): { user: SssoJwtPayload } | NextResponse {
   const secret = getJwtSecret();
   if (!secret) {
     return NextResponse.json(
-      { error: "ONEAUTH_JWT_SECRET not configured", code: "misconfigured" },
+      { error: "SSSO_JWT_SECRET not configured", code: "misconfigured" },
       { status: 503 }
     );
   }
@@ -32,7 +32,7 @@ export function requireUser(
   try {
     const user = verifyAccessToken(token, {
       jwtSecret: secret,
-      clientId: process.env.NEXT_PUBLIC_ONEAUTH_CLIENT_ID,
+      clientId: process.env.NEXT_PUBLIC_SSSO_CLIENT_ID,
     });
     return { user };
   } catch {

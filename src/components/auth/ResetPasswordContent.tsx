@@ -4,8 +4,27 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getPublicConfig } from "@/lib/config";
+import { resolveThemeSettings } from "@/lib/workspace/theme-resolver";
 
-export function ResetPasswordContent() {
+interface ResetPasswordContentProps {
+  tenantWorkspace?: {
+    name: string;
+    settings?: {
+      logoUrl?: string | null;
+      primaryColor?: string | null;
+      themeType?: string | null;
+      backgroundImageUrl?: string | null;
+      backgroundColor?: string | null;
+      customCardBg?: string | null;
+      customCardBorder?: string | null;
+      customCardText?: string | null;
+      customButtonBg?: string | null;
+      customButtonText?: string | null;
+    } | null;
+  } | null;
+}
+
+export function ResetPasswordContent({ tenantWorkspace }: ResetPasswordContentProps) {
   const { app } = getPublicConfig();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -32,62 +51,108 @@ export function ResetPasswordContent() {
 
     setLoading(true);
 
-    const res = await fetch("/api/auth/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, password }),
-    });
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
+      setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error ?? "Reset failed");
-      return;
+      if (!res.ok) {
+        setError(data.error ?? "Reset failed");
+        return;
+      }
+
+      router.push("/login?reset=success");
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
     }
-
-    router.push("/login?reset=success");
   }
 
+  const theme = resolveThemeSettings(tenantWorkspace?.settings);
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
-      <h1 className="text-2xl font-semibold">Choose new password</h1>
-      <p className="mt-2 text-sm text-[var(--muted)]">{app.name}</p>
+    <div 
+      className={`flex min-h-screen flex-col items-center justify-center p-6 ${theme.themeClass}`}
+      style={theme.outerStyle}
+    >
+      <main className={theme.cardClass}>
+        {tenantWorkspace?.settings?.logoUrl ? (
+          <div className="mb-6 flex justify-center">
+            <img
+              src={tenantWorkspace.settings.logoUrl}
+              alt={`${tenantWorkspace.name} logo`}
+              className="auth-logo-img max-h-16 max-w-full object-contain p-2"
+            />
+          </div>
+        ) : null}
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-        <input
-          type="password"
-          required
-          autoComplete="new-password"
-          placeholder="New password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
-        />
-        <input
-          type="password"
-          required
-          autoComplete="new-password"
-          placeholder="Confirm password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
-        />
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-[var(--accent)] py-2.5 text-sm font-medium text-white disabled:opacity-50"
-        >
-          {loading ? "Updating…" : "Update password"}
-        </button>
-      </form>
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Choose new password</h1>
+        <p className="auth-info-box mt-4 text-sm text-[var(--foreground)]/70 leading-relaxed p-4 bg-slate-50 border border-slate-100 rounded-lg">
+          For your {tenantWorkspace ? tenantWorkspace.name : app.name} account.
+        </p>
 
-      <p className="mt-6 text-center text-sm">
-        <Link href="/login" className="text-[var(--accent)] hover:underline">
-          ← Sign in
-        </Link>
-      </p>
-    </main>
+        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <div>
+            <label htmlFor="new-password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+              New password
+            </label>
+            <input
+              id="new-password"
+              type="password"
+              required
+              autoComplete="new-password"
+              placeholder="New password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="auth-input w-full px-3.5 py-2.5 text-sm text-[var(--foreground)] placeholder-slate-400 border border-slate-200 rounded-lg outline-none"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="confirm-password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+              Confirm password
+            </label>
+            <input
+              id="confirm-password"
+              type="password"
+              required
+              autoComplete="new-password"
+              placeholder="Confirm password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className="auth-input w-full px-3.5 py-2.5 text-sm text-[var(--foreground)] placeholder-slate-400 border border-slate-200 rounded-lg outline-none"
+            />
+          </div>
+
+          {error && (
+            <div className="text-xs font-medium text-red-800 bg-red-50 border border-red-200 p-3 rounded-lg" role="alert">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              backgroundColor: "var(--tenant-primary, var(--accent))",
+            }}
+            className="auth-button w-full py-3 text-sm font-semibold rounded-lg bg-indigo-600 text-white shadow-sm hover:bg-indigo-500 transition-colors disabled:opacity-50"
+          >
+            {loading ? "Updating…" : "Update password"}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-slate-500">
+          <Link href="/login" className="text-indigo-600 hover:text-indigo-500 font-semibold transition-colors">
+            ← Sign in
+          </Link>
+        </p>
+      </main>
+    </div>
   );
 }

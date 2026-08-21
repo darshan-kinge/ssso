@@ -12,12 +12,12 @@ export async function POST(request: Request) {
   }
 
   const authUrl = process.env.NEXT_PUBLIC_AUTH_URL?.replace(/\/$/, "");
-  const clientId = process.env.NEXT_PUBLIC_ONEAUTH_CLIENT_ID;
-  const clientSecret = process.env.ONEAUTH_CLIENT_SECRET;
+  const clientId = process.env.NEXT_PUBLIC_SSSO_CLIENT_ID;
+  const clientSecret = process.env.SSSO_CLIENT_SECRET;
 
   if (!authUrl || !clientId) {
     return NextResponse.json(
-      { error: "Missing OneAuth env vars", code: "misconfigured" },
+      { error: "Missing SSSO env vars", code: "misconfigured" },
       { status: 503 }
     );
   }
@@ -35,14 +35,24 @@ export async function POST(request: Request) {
     body.client_secret = clientSecret;
   } else {
     return NextResponse.json(
-      { error: "code_verifier or ONEAUTH_CLIENT_SECRET required" },
+      { error: "code_verifier or SSSO_CLIENT_SECRET required" },
       { status: 400 }
     );
   }
 
-  const res = await fetch(`${authUrl}/api/oauth/token`, {
+  const tokenUrl = new URL(`${authUrl}/api/oauth/token`);
+  const requestHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (tokenUrl.hostname.endsWith(".localhost")) {
+    requestHeaders["Host"] = tokenUrl.host;
+    tokenUrl.hostname = "127.0.0.1";
+  }
+
+  const res = await fetch(tokenUrl.toString(), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: requestHeaders,
     body: JSON.stringify(body),
   });
 

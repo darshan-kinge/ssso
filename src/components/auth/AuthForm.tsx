@@ -8,15 +8,18 @@ import {
   setStoredAccessToken,
 } from "@/lib/auth/client";
 import { getPublicConfig } from "@/lib/config";
+import { getPostAuthPath } from "@/lib/auth/post-auth";
+import { isTenantAuthHostClient } from "@/lib/workspace/tenant-host-client";
 
 type Mode = "login" | "signup";
 
 interface AuthFormProps {
   mode: Mode;
   oauthReturn?: string | null;
+  inviteToken?: string | null;
 }
 
-export function AuthForm({ mode, oauthReturn = null }: AuthFormProps) {
+export function AuthForm({ mode, oauthReturn = null, inviteToken = null }: AuthFormProps) {
   const router = useRouter();
   const { features } = getPublicConfig();
   const [email, setEmail] = useState("");
@@ -34,7 +37,7 @@ export function AuthForm({ mode, oauthReturn = null }: AuthFormProps) {
     const res = await fetch("/api/auth/resend-verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, oauthReturn }),
     });
     const data = await res.json();
     setLoading(false);
@@ -52,7 +55,7 @@ export function AuthForm({ mode, oauthReturn = null }: AuthFormProps) {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, oauthReturn }),
         credentials: "include",
       });
 
@@ -75,7 +78,57 @@ export function AuthForm({ mode, oauthReturn = null }: AuthFormProps) {
         setStoredAccessToken(data.accessToken);
       }
 
-      router.push(oauthReturn ?? "/account");
+      if (inviteToken) {
+        const acceptRes = await fetch("/api/invites/accept", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.accessToken}`,
+          },
+          credentials: "include",
+          body: JSON.stringify({ token: inviteToken }),
+        });
+        const acceptData = await acceptRes.json();
+        if (acceptRes.ok && acceptData.accessToken) {
+          setStoredAccessToken(acceptData.accessToken);
+          if (acceptData.workspaceId) {
+            localStorage.setItem(
+              "ssso_active_workspace",
+              acceptData.workspaceId
+            );
+          }
+          router.push("/dashboard");
+          router.refresh();
+          return;
+        }
+      }
+
+      const tenantHost = isTenantAuthHostClient();
+
+      if (oauthReturn) {
+        window.location.assign(oauthReturn);
+        return;
+      }
+
+      let hasWorkspaces = false;
+      if (!tenantHost) {
+        const wsRes = await fetch("/api/workspaces", {
+          headers: { Authorization: `Bearer ${data.accessToken}` },
+          credentials: "include",
+        });
+        const wsData = wsRes.ok ? await wsRes.json() : { workspaces: [] };
+        hasWorkspaces = (wsData.workspaces?.length ?? 0) > 0;
+        if (hasWorkspaces && wsData.workspaces[0]?.id) {
+          localStorage.setItem(
+            "ssso_active_workspace",
+            wsData.workspaces[0].id
+          );
+        }
+      }
+
+      router.push(
+        getPostAuthPath(hasWorkspaces, oauthReturn, { tenantHost })
+      );
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
@@ -87,8 +140,8 @@ export function AuthForm({ mode, oauthReturn = null }: AuthFormProps) {
   return (
     <form onSubmit={handleSubmit} className="mt-8 space-y-4">
       <div>
-        <label htmlFor="email" className="mb-1 block text-sm text-[var(--muted)]">
-          Email
+        <label htmlFor="email" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
+          Email address
         </label>
         <input
           id="email"
@@ -97,16 +150,27 @@ export function AuthForm({ mode, oauthReturn = null }: AuthFormProps) {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+          className="auth-input w-full px-3.5 py-2.5 text-sm text-[var(--foreground)] placeholder-slate-400 border border-slate-200 rounded-lg outline-none"
+          placeholder="you@example.com"
         />
       </div>
       <div>
-        <label
-          htmlFor="password"
-          className="mb-1 block text-sm text-[var(--muted)]"
-        >
-          Password
-        </label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label
+            htmlFor="password"
+            className="block text-xs font-semibold uppercase tracking-wider text-slate-700"
+          >
+            Password
+          </label>
+          {mode === "login" && (
+            <Link
+              href="/forgot-password"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-500 hover:underline transition-colors"
+            >
+              Forgot password?
+            </Link>
+          )}
+        </div>
         <input
           id="password"
           type="password"
@@ -114,36 +178,27 @@ export function AuthForm({ mode, oauthReturn = null }: AuthFormProps) {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+          className="auth-input w-full px-3.5 py-2.5 text-sm text-[var(--foreground)] placeholder-slate-400 border border-slate-200 rounded-lg outline-none"
+          placeholder="••••••••"
         />
-        {mode === "login" && (
-          <p className="mt-2 text-right text-xs">
-            <Link
-              href="/forgot-password"
-              className="text-[var(--accent)] hover:underline"
-            >
-              Forgot password?
-            </Link>
-          </p>
-        )}
       </div>
 
       {error && (
-        <p className="text-sm text-red-400" role="alert">
+        <div className="text-xs font-medium text-red-800 bg-red-50 border border-red-200 p-3 rounded-lg" role="alert">
           {error}
-        </p>
+        </div>
       )}
       {info && (
-        <p className="text-sm text-[var(--accent)]" role="status">
+        <div className="text-xs font-medium text-indigo-800 bg-indigo-50 border border-indigo-200 p-3 rounded-lg" role="status">
           {info}
-        </p>
+        </div>
       )}
       {needsVerify && (
         <button
           type="button"
           onClick={resendVerification}
           disabled={loading || !email}
-          className="w-full text-sm text-[var(--accent)] hover:underline disabled:opacity-50"
+          className="w-full text-xs font-semibold text-indigo-600 hover:text-indigo-500 hover:underline transition-colors disabled:opacity-50"
         >
           Resend verification email
         </button>
@@ -152,7 +207,10 @@ export function AuthForm({ mode, oauthReturn = null }: AuthFormProps) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-[var(--accent)] py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+        style={{
+          backgroundColor: "var(--tenant-primary, var(--accent))",
+        }}
+        className="auth-button w-full py-3 text-sm font-semibold rounded-lg bg-indigo-600 text-white shadow-sm hover:bg-indigo-500 transition-colors disabled:opacity-50"
       >
         {loading
           ? "Please wait…"
@@ -162,15 +220,15 @@ export function AuthForm({ mode, oauthReturn = null }: AuthFormProps) {
       </button>
 
       {mode === "signup" && features.requireEmailVerification && (
-        <p className="text-center text-xs text-[var(--muted)]">
+        <p className="text-center text-xs font-bold text-[var(--foreground)]">
           You will need to verify your email before signing in.
         </p>
       )}
 
       {mode === "login" && !features.requireEmailVerification && (
-        <p className="text-center text-xs text-[var(--muted)]">
+        <p className="text-center text-xs font-bold text-[var(--foreground)]/60">
           Session token stored as{" "}
-          <code className="rounded bg-[var(--card)] px-1">{ACCESS_TOKEN_KEY}</code>
+          <code className="bg-[var(--card)] border border-[var(--border)] px-1 py-0.5 font-mono text-[var(--foreground)]">{ACCESS_TOKEN_KEY}</code>
         </p>
       )}
     </form>

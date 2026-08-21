@@ -1,4 +1,4 @@
-import { getUserFromRefreshCookie } from "@/lib/oauth/session-user";
+import { getOAuthSubjectFromRefreshCookie } from "@/lib/oauth/subject";
 import {
   parseAuthorizeParams,
   completeAuthorization,
@@ -7,6 +7,8 @@ import { validateOAuthClient } from "@/lib/oauth/apps";
 import { withAuthRoute } from "@/lib/api/with-auth-route";
 import { AuthError } from "@/lib/auth/errors";
 import { jsonOk } from "@/lib/api/response";
+import { getResolvedTenantWorkspace } from "@/lib/workspace/request-context";
+import { isMultiTenantEnabled } from "@/lib/config/deployment";
 
 /** Complete OAuth authorize step for the current auth-domain session. */
 export const POST = withAuthRoute(async (request) => {
@@ -32,13 +34,23 @@ export const POST = withAuthRoute(async (request) => {
     throw new AuthError("Invalid authorize request", 400, "invalid_request");
   }
 
-  await validateOAuthClient(params.client_id, params.redirect_uri);
+  const tenantWorkspace = isMultiTenantEnabled()
+    ? await getResolvedTenantWorkspace()
+    : null;
 
-  const user = await getUserFromRefreshCookie();
-  if (!user) {
+  await validateOAuthClient(
+    params.client_id,
+    params.redirect_uri,
+    tenantWorkspace?._id.toString()
+  );
+
+  const subject = await getOAuthSubjectFromRefreshCookie(
+    tenantWorkspace?._id.toString()
+  );
+  if (!subject) {
     throw new AuthError("Not signed in", 401, "login_required");
   }
 
-  const redirectUrl = await completeAuthorization(user, params);
+  const redirectUrl = await completeAuthorization(subject, params);
   return jsonOk({ redirectUrl });
 });

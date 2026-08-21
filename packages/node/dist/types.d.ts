@@ -1,4 +1,4 @@
-export interface OneAuthJwtPayload {
+export interface SssoJwtPayload {
     sub: string;
     email: string;
     client_id?: string;
@@ -6,7 +6,7 @@ export interface OneAuthJwtPayload {
     exp?: number;
 }
 export interface AuthMiddlewareOptions {
-    /** Same value as OneAuth JWT_SECRET */
+    /** Same value as SSSO JWT_SECRET */
     jwtSecret: string;
     /** Optional: require token was issued for this client_id */
     clientId?: string;
@@ -14,7 +14,7 @@ export interface AuthMiddlewareOptions {
 declare global {
     namespace Express {
         interface Request {
-            oneauthUser?: OneAuthJwtPayload;
+            sssoUser?: SssoJwtPayload;
         }
     }
 }

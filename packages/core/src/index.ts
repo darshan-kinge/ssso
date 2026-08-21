@@ -1,4 +1,4 @@
-export { OneAuthClient } from "./client.js";
+export { SssoClient } from "./client.js";
 export {
   decodeAccessToken,
   userFromClaims,
@@ -13,8 +13,9 @@ export {
   PKCE_VERIFIER_KEY,
 } from "./pkce.js";
 export type {
-  OneAuthConfig,
-  OneAuthUser,
+  SssoConfig,
+  SssoUser,
   TokenResponse,
   AccessTokenClaims,
+  WorkspacePublicConfig,
 } from "./types.js";

@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@oneauth/react";
+import { useAuth } from "@ssso/react";
 
 export function SignedOutPanel() {
   const { login } = useAuth();
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-8 text-center">
-      <p className="text-[var(--muted)]">You are signed out of this app.</p>
+      <p className="text-[var(--muted)]">Sign in to access Pulse.</p>
       <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
         <Link
           href="/"

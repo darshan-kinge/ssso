@@ -1,5 +1,5 @@
 import { signupSchema } from "@/lib/validators/auth";
-import { signupUser } from "@/lib/auth/service";
+import { signupForRequestPlane } from "@/lib/auth/plane-auth";
 import { getDeviceLabel } from "@/lib/auth/request";
 import { jsonOk } from "@/lib/api/response";
 import { withAuthRoute } from "@/lib/api/with-auth-route";
@@ -20,10 +20,11 @@ export const POST = withAuthRoute(
     }
 
     const email = parsed.data.email.toLowerCase().trim();
+    const oauthReturn = typeof body.oauthReturn === "string" ? body.oauthReturn : null;
 
     try {
       const device = await getDeviceLabel();
-      const result = await signupUser(parsed.data, device);
+      const result = await signupForRequestPlane(parsed.data, device, oauthReturn);
       await logAudit({
         action: "signup.success",
         request,

@@ -1,5 +1,5 @@
 /** Client-side access token storage (Phase 1). SDK will abstract this in Phase 4. */
-export const ACCESS_TOKEN_KEY = "oneauth_access_token";
+export const ACCESS_TOKEN_KEY = "ssso_access_token";
 
 export function getStoredAccessToken(): string | null {
   if (typeof window === "undefined") return null;

@@ -6,7 +6,7 @@ export interface ProtectedRouteProps {
     /** Shown when not authenticated */
     unauthenticated?: ReactNode;
     /**
-     * Redirect to OneAuth when unauthenticated.
+     * Redirect to SSSO when unauthenticated.
      * Default: true if `unauthenticated` is omitted, false if you provide custom UI.
      */
     autoLogin?: boolean;

@@ -1,4 +1,4 @@
-import type { AccessTokenClaims, OneAuthUser } from "./types.js";
+import type { AccessTokenClaims, SssoUser } from "./types.js";
 
 /** Decode JWT payload without verification (client display only). */
 export function decodeAccessToken(token: string): AccessTokenClaims | null {
@@ -19,7 +19,7 @@ export function decodeAccessToken(token: string): AccessTokenClaims | null {
 export function userFromClaims(
   claims: AccessTokenClaims,
   isVerified = true
-): OneAuthUser {
+): SssoUser {
   return {
     id: claims.sub,
     email: claims.email,

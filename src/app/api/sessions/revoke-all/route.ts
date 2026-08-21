@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { getAuthenticatedUser } from "@/lib/auth/request";
+import {
+  getAuthenticatedUser,
+  requireWorkspaceRole,
+} from "@/lib/auth/request";
 import {
   revokeAllSessionsForUser,
   revokeOtherSessionsForUser,
@@ -7,15 +10,29 @@ import {
 import { jsonOk } from "@/lib/api/response";
 import { withAuthRoute } from "@/lib/api/with-auth-route";
 import { logAudit } from "@/lib/security/audit";
+import { isMultiTenantEnabled } from "@/lib/config/deployment";
 
 const bodySchema = z.object({
   exceptCurrent: z.boolean().optional().default(true),
 });
 
 export const POST = withAuthRoute(async (request) => {
-  const { user } = await getAuthenticatedUser(
-    request.headers.get("authorization")
-  );
+  const auth = request.headers.get("authorization");
+
+  let userId: string;
+  let email: string;
+  let workspaceId: string | undefined;
+
+  if (isMultiTenantEnabled()) {
+    const ctx = await requireWorkspaceRole(auth, "viewer");
+    userId = ctx.user._id.toString();
+    email = ctx.user.email;
+    workspaceId = ctx.workspaceId!;
+  } else {
+    const { user } = await getAuthenticatedUser(auth);
+    userId = user._id.toString();
+    email = user.email;
+  }
 
   let exceptCurrent = true;
   const text = await request.text();
@@ -26,17 +43,17 @@ export const POST = withAuthRoute(async (request) => {
     }
   }
 
-  const userId = user._id.toString();
   const revokedCount = exceptCurrent
-    ? await revokeOtherSessionsForUser(userId)
-    : await revokeAllSessionsForUser(userId);
+    ? await revokeOtherSessionsForUser(userId, workspaceId)
+    : await revokeAllSessionsForUser(userId, workspaceId);
 
   await logAudit({
     action: "session.revoke_all",
     request,
     success: true,
     userId,
-    email: user.email,
+    email,
+    workspaceId,
     meta: { revokedCount, exceptCurrent },
   });
 

@@ -13,7 +13,8 @@ function verificationExpiresAt(): Date {
 }
 
 export async function createAndSendVerificationEmail(
-  user: UserDocument
+  user: UserDocument,
+  oauthReturn?: string | null
 ): Promise<void> {
   await connectDb();
 
@@ -23,8 +24,11 @@ export async function createAndSendVerificationEmail(
   await VerificationToken.deleteMany({ userId: user._id, usedAt: null });
   await VerificationToken.create({
     userId: user._id,
+    endUserId: null,
+    workspaceId: null,
     tokenHash,
     expiresAt: verificationExpiresAt(),
+    oauthReturn: oauthReturn ?? null,
   });
 
   const mail = verificationEmailContent(token);
@@ -34,11 +38,14 @@ export async function createAndSendVerificationEmail(
   });
 }
 
-export async function verifyEmailWithToken(token: string): Promise<UserDocument> {
+export async function verifyEmailWithToken(token: string): Promise<{ user: UserDocument; oauthReturn: string | null }> {
   await connectDb();
   const tokenHash = hashOpaqueToken(token);
 
-  const record = await VerificationToken.findOne({ tokenHash });
+  const record = await VerificationToken.findOne({
+    tokenHash,
+    userId: { $ne: null },
+  });
   if (!record || record.usedAt) {
     throw new AuthError("Invalid or expired verification link", 400, "invalid_token");
   }
@@ -59,10 +66,10 @@ export async function verifyEmailWithToken(token: string): Promise<UserDocument>
   record.usedAt = new Date();
   await record.save();
 
-  return user;
+  return { user, oauthReturn: record.oauthReturn || null };
 }
 
-export async function resendVerificationEmail(email: string): Promise<void> {
+export async function resendVerificationEmail(email: string, oauthReturn?: string | null): Promise<void> {
   await connectDb();
   const normalized = email.toLowerCase().trim();
   const user = await User.findOne({ email: normalized });
@@ -71,5 +78,6 @@ export async function resendVerificationEmail(email: string): Promise<void> {
     return;
   }
 
-  await createAndSendVerificationEmail(user);
+  await createAndSendVerificationEmail(user, oauthReturn);
 }
+

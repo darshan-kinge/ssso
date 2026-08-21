@@ -1,4 +1,4 @@
-const VERIFIER_KEY = "oneauth_code_verifier";
+const VERIFIER_KEY = "ssso_code_verifier";
 /** RFC 7636 PKCE helpers (browser or Node 18+). */
 export function generateCodeVerifier() {
     const bytes = new Uint8Array(32);

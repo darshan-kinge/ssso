@@ -6,7 +6,9 @@ export function extractBearerToken(authorization) {
     return token || null;
 }
 export function verifyAccessToken(token, options) {
-    const decoded = jwt.verify(token, options.jwtSecret);
+    const decoded = jwt.verify(token, options.jwtSecret, {
+        algorithms: ["HS256"],
+    });
     if (!decoded.sub || !decoded.email) {
         throw new Error("Invalid token payload");
     }

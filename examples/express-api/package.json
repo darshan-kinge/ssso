@@ -1,9 +1,9 @@
 {
-  "name": "oneauth-express-example",
+  "name": "ssso-express-example",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@oneauth/node": "file:../../packages/node",
+    "@ssso/node": "file:../../packages/node",
     "express": "^4.21.2"
   }
 }

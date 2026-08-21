@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@oneauth/react";
+import { useAuth } from "@ssso/react";
 
 export function ApiTester() {
   const { token, isAuthenticated } = useAuth();
@@ -37,25 +37,23 @@ export function ApiTester() {
 
   if (!isAuthenticated) {
     return (
-      <p className="text-sm text-[var(--muted)]">
-        Sign in to test protected API routes (verified with @oneauth/node).
-      </p>
+      <p className="text-sm text-[var(--muted)]">Sign in to test protected APIs.</p>
     );
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-[var(--muted)]">
-        Calls your Next.js API with{" "}
+        Sends your access token as{" "}
         <code className="rounded bg-[var(--card)] px-1">Authorization: Bearer</code>.
-        Routes use <code className="rounded bg-[var(--card)] px-1">verifyAccessToken</code> from{" "}
-        <strong>@oneauth/node</strong> (same as Express middleware).
+        Routes are verified with <code>@ssso/node</code>.
       </p>
       <select
         value={endpoint}
         onChange={(e) => setEndpoint(e.target.value)}
         className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
       >
+        <option value="/api/projects">GET /api/projects</option>
         <option value="/api/protected/me">GET /api/protected/me</option>
         <option value="/api/protected/data">GET /api/protected/data</option>
       </select>

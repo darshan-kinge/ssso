@@ -7,7 +7,7 @@ export function auth(options) {
             return;
         }
         try {
-            req.oneauthUser = verifyAccessToken(token, options);
+            req.sssoUser = verifyAccessToken(token, options);
             next();
         }
         catch {
